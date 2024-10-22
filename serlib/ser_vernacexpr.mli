@@ -208,6 +208,10 @@ type scheme =
   [%import: Vernacexpr.scheme]
   [@@deriving sexp,yojson,hash,compare]
 
+type subproof_kind =
+  [%import: Vernacexpr.subproof_kind]
+  [@@deriving sexp,yojson,hash,compare]
+
 type section_subset_expr =
   [%import: Vernacexpr.section_subset_expr]
   [@@deriving sexp,yojson,hash,compare]
