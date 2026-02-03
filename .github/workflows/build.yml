@@ -70,10 +70,6 @@ jobs:
       - name: 🐫🐪🐫 Get dependencies
         run: opam exec -- make opam-deps
 
-      - name: 🐛 Special Windows Config [only on Win CI]
-        if: matrix.os == 'windows-latest'
-        run: opam exec -- make winconfig # Due to path quoting, could be fixed
-
       - name: 🧱 Build coq-lsp
         run: opam exec -- make build
 

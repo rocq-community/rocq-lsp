@@ -76,19 +76,6 @@ vendor/coq/config/coq_config.ml: vendor/coq
 	&& cp theories/Corelib/dune.disabled theories/Corelib/dune \
 	&& cp theories/Ltac2/dune.disabled theories/Ltac2/dune
 
-# We set windows parameters a bit better, note the need to use forward
-# slashed (cygpath -m) due to escaping :( , a conversion to `-w` is
-# welcomed if someones has time for this
-.PHONY: winconfig
-winconfig:
-	EPATH=$(shell cygpath -am .) \
-	&& cd vendor/coq \
-	&& ./configure -no-ask -prefix "$$EPATH\\_build\\install\\default\\" \
-	        -libdir "$$EPATH\\_build\\install\\default\\lib\\coq\\" \
-		-native-compiler no \
-	&& cp theories/Corelib/dune.disabled theories/Corelib/dune \
-	&& cp theories/Ltac2/dune.disabled theories/Ltac2/dune
-
 .PHONY: js
 js: COQVM = no
 js: coq_boot
