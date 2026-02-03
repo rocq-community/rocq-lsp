@@ -17,7 +17,7 @@ module Reified_goal : sig
 
   type info =
     { evar : Evar.t
-    ; name : Names.Id.t option
+    ; name : Libnames.full_path option
     }
 
   type 'a t =

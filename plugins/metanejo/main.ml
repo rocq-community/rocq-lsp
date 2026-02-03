@@ -185,6 +185,7 @@ let analyze (CAst.{ loc = _; v } : Vernacexpr.vernac_control) : _ option =
     | VernacCoFixpoint (_, _) -> None
     | VernacScheme _ -> None
     | VernacSchemeEquality (_, _) -> None
+    | VernacSchemeAll _ -> None
     | VernacCombinedScheme (_, _) -> None
     | VernacUniverse _ -> None
     | VernacSort _ -> None

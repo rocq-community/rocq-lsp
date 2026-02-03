@@ -16,11 +16,8 @@
 (* Written by: Emilio J. Gallego Arias and others                       *)
 (************************************************************************)
 
-open Sexplib.Conv
-open Ppx_hash_lib.Std.Hash.Builtin
-open Ppx_compare_lib.Builtin
-
 module Names      = Ser_names
+module PolyFlags = Ser_polyFlags
 
 module Val = struct
 

@@ -66,10 +66,18 @@ type relevance_info_expr =
 
 type sort_expr =
   [%import: Constrexpr.sort_expr]
-  [@@deriving sexp,yojson,hash,compare]
-
+  [@@deriving sexp,yojson,hash,compare
+]
 type univ_constraint_expr =
   [%import: Constrexpr.univ_constraint_expr]
+  [@@deriving sexp,yojson,hash,compare]
+
+type elim_constraint_expr =
+  [%import: Constrexpr.elim_constraint_expr]
+  [@@deriving sexp,yojson,hash,compare]
+
+type sort_constraint_expr =
+  [%import: Constrexpr.sort_constraint_expr]
   [@@deriving sexp,yojson,hash,compare]
 
 type instance_expr =

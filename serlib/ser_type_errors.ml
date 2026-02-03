@@ -28,6 +28,7 @@ module Univ    = Ser_univ
 module UVars   = Ser_uvars
 module Context = Ser_context
 module CPrimitives = Ser_cPrimitives
+module PConstraints = Ser_pConstraints
 
 type 'constr pfix_guard_error =
   [%import: 'constr Type_errors.pfix_guard_error]

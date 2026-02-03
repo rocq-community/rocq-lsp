@@ -10,6 +10,10 @@
 
 let equal_option = Option.equal
 
+type full_path = Libnames.full_path
+
+let equal_full_path = Libnames.eq_full_path
+
 module Reified_goal = struct
   type 'a hyp =
     { names : String.t List.t
@@ -25,7 +29,7 @@ module Reified_goal = struct
 
   type info =
     { evar : Evar.t
-    ; name : Names.Id.t option
+    ; name : full_path option
     }
   [@@deriving equal]
 

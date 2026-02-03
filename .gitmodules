@@ -1,10 +1,9 @@
 [submodule "coq"]
 	path = vendor/coq
-	url = https://github.com/coq/coq.git
+	url = https://github.com/rocq-prover/rocq.git
 [submodule "vendor/coq-stdlib"]
 	path = vendor/coq-stdlib
-	url = https://github.com/coq/stdlib.git
+	url = https://github.com/rocq-prover/stdlib.git
 [submodule "vendor/coq-waterproof"]
 	path = vendor/coq-waterproof
-	url = https://github.com/ejgallego/coq-waterproof.git
-	branch = dune-rocq
+	url = https://github.com/impermeable/coq-waterproof.git

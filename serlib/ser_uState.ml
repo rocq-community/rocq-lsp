@@ -20,8 +20,8 @@ open Ppx_hash_lib.Std.Hash.Builtin
 open Ppx_compare_lib.Builtin
 open Sexplib.Std
 
-type ('a,'b,'c) gen_universe_decl =
-  [%import: ('a,'b,'c) UState.gen_universe_decl]
+type ('a,'b,'c,'d) gen_universe_decl =
+  [%import: ('a,'b,'c,'d) UState.gen_universe_decl]
   [@@deriving sexp,yojson,hash,compare]
 
 type rigid =

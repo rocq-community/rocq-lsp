@@ -16,30 +16,19 @@
 (* Written by: Emilio J. Gallego Arias and others                       *)
 (************************************************************************)
 
-module ERelevance : sig
-  type t = EConstr.ERelevance.t
+open Sexplib.Std
+open Ppx_hash_lib.Std.Hash.Builtin
+open Ppx_compare_lib.Builtin
+
+module Biject = struct
+  type t = PolyFlags.t
+  type _t = bool * bool * bool
   [@@deriving sexp,yojson,hash,compare]
+
+  open PolyFlags
+
+  let of_t f = univ_poly f, collapse_sort_variables f, cumulative f
+  let to_t (univ_poly,collapse_sort_variables,cumulative) = make ~univ_poly ~collapse_sort_variables ~cumulative
 end
 
-module ESorts : sig
-  type t = EConstr.ESorts.t
-  [@@deriving sexp,yojson,hash,compare]
-end
-
-type t = EConstr.t
-  [@@deriving sexp,yojson,hash,compare]
-
-type existential = EConstr.existential
-[@@deriving sexp]
-
-type constr = t
-  [@@deriving sexp,yojson,hash,compare]
-
-type types = t
-[@@deriving sexp]
-
-type unsafe_judgment = EConstr.unsafe_judgment
-[@@deriving sexp]
-
-type 'a puniverses = 'a EConstr.puniverses
-[@@deriving sexp]
+include SerType.Biject(Biject)

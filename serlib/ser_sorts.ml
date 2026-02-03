@@ -87,15 +87,3 @@ module ElimConstraint = struct
 end
 
 module ElimConstraints = Ser_cSet.Make(Sorts.ElimConstraints)(ElimConstraint)
-
-module QCumulConstraint = struct
-  type kind =
-    [%import: Sorts.QCumulConstraint.kind]
-    [@@deriving sexp,yojson,hash,compare]
-
-  type t =
-    [%import: Sorts.QCumulConstraint.t]
-    [@@deriving sexp,yojson,hash,compare]
-end
-
-module QCumulConstraints = Ser_cSet.Make(Sorts.QCumulConstraints)(QCumulConstraint)

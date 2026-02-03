@@ -30,6 +30,8 @@ open Univ
 module Sorts = Ser_sorts
 open Sorts
 
+module PConstraints = Ser_pConstraints
+
 module Variance = struct
 
   type t =
@@ -69,7 +71,7 @@ module UContext = struct
 
   module I = struct
     type t = UVars.UContext.t
-    type _t = bound_names * (Instance.t * Constraints.t)
+    type _t = bound_names * (Instance.t * PConstraints.t)
     [@@deriving sexp,yojson,hash,compare]
 
     let to_t (un, cs) = UVars.UContext.make un cs
@@ -85,7 +87,7 @@ module AbstractContext = struct
   module ACPierceDef = struct
 
     type t = UVars.AbstractContext.t
-    type _t = bound_names * Constraints.t
+    type _t = bound_names * UnivConstraints.t
     [@@deriving sexp,yojson,hash,compare]
   end
 

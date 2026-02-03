@@ -19,6 +19,7 @@
 module Sorts   = Ser_sorts
 module Constr  = Ser_constr
 module Environ = Ser_environ
+module UVars   = Ser_uvars
 
 module ERtoR = struct
 
@@ -31,6 +32,30 @@ module ERtoR = struct
 end 
 
 module ERelevance = SerType.Biject(ERtoR)
+
+module EItoI = struct
+
+  type t = EConstr.EInstance.t
+  type _t = UVars.Instance.t
+  [@@deriving sexp,yojson,hash,compare]
+
+  let to_t = EConstr.EInstance.make
+  let of_t = EConstr.Unsafe.to_instance
+end
+
+module EInstance = SerType.Biject(EItoI)
+
+module EStoS = struct
+
+  type t = EConstr.ESorts.t
+  type _t = Sorts.t
+  [@@deriving sexp,yojson,hash,compare]
+
+  let to_t = EConstr.ESorts.make
+  let of_t = EConstr.Unsafe.to_sorts
+end
+
+module ESorts = SerType.Biject(EStoS)
 
 module ECtoC = struct
 
@@ -60,3 +85,5 @@ type unsafe_judgment =
   [%import: EConstr.unsafe_judgment]
   [@@deriving sexp]
 
+type 'a puniverses = [%import: 'a EConstr.puniverses]
+[@@deriving sexp]

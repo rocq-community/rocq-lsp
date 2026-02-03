@@ -10,6 +10,7 @@ module Loc = Serlib.Ser_loc
 module Names = Serlib.Ser_names
 module Evar = Serlib.Ser_evar
 module Evar_kinds = Serlib.Ser_evar_kinds
+module Libnames = Serlib.Ser_libnames
 
 let rec pp_opt d =
   let open Coq.Pp_t in

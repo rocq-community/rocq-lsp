@@ -21,6 +21,7 @@ open Ppx_compare_lib.Builtin
 open Sexplib.Conv
 
 module Names       = Ser_names
+module Libnames = Ser_libnames
 
 type goal_range_selector =
   [%import: Proofview.goal_range_selector]

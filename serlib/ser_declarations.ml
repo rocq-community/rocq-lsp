@@ -56,6 +56,10 @@ type squash_info =
   [%import: Declarations.squash_info]
   [@@deriving sexp,yojson,hash,compare]
 
+type has_eta =
+  [%import: Declarations.has_eta]
+  [@@deriving sexp,yojson,hash,compare]
+
 type record_info =
   [%import: Declarations.record_info]
   [@@deriving sexp,yojson,hash,compare]

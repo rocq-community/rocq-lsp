@@ -16,30 +16,5 @@
 (* Written by: Emilio J. Gallego Arias and others                       *)
 (************************************************************************)
 
-module ERelevance : sig
-  type t = EConstr.ERelevance.t
-  [@@deriving sexp,yojson,hash,compare]
-end
-
-module ESorts : sig
-  type t = EConstr.ESorts.t
-  [@@deriving sexp,yojson,hash,compare]
-end
-
-type t = EConstr.t
-  [@@deriving sexp,yojson,hash,compare]
-
-type existential = EConstr.existential
-[@@deriving sexp]
-
-type constr = t
-  [@@deriving sexp,yojson,hash,compare]
-
-type types = t
-[@@deriving sexp]
-
-type unsafe_judgment = EConstr.unsafe_judgment
-[@@deriving sexp]
-
-type 'a puniverses = 'a EConstr.puniverses
-[@@deriving sexp]
+type t = PConstraints.t
+[@@deriving sexp,yojson,hash,compare]
