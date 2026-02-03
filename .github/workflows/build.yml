@@ -110,7 +110,7 @@ jobs:
       - name: 🐫 Setup OCaml
         uses: ocaml/setup-ocaml@v3
         with:
-          ocaml-compiler: "ocaml-variants.4.12.0+options,ocaml-option-32bit"
+          ocaml-compiler: "ocaml-variants.4.14.0+options,ocaml-option-32bit"
           dune-cache: true
 
       - name: 💉💉💉 Patch Coq
