@@ -7,3 +7,4 @@
 [submodule "vendor/coq-waterproof"]
 	path = vendor/coq-waterproof
 	url = https://github.com/impermeable/coq-waterproof.git
+        branch = coq-master

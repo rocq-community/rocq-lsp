@@ -97,6 +97,7 @@ jobs:
       # repository
       - name: Install apt dependencies
         run: |
+          sudo apt-get update
           sudo apt-get install aptitude
           sudo dpkg --add-architecture i386
           sudo aptitude -o Acquire::Retries=30 update -q
