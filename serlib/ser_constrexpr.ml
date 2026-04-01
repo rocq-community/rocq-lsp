@@ -31,7 +31,6 @@ module UState     = Ser_uState
 module Namegen    = Ser_namegen
 module Pattern    = Ser_pattern
 module Evar_kinds = Ser_evar_kinds
-module Genarg     = Ser_genarg
 module Libnames   = Ser_libnames
 module Glob_term  = Ser_glob_term
 module NumTok     = Ser_numTok
@@ -39,6 +38,7 @@ module Univ       = Ser_univ
 module UVars      = Ser_uvars
 module Sorts      = Ser_sorts
 module Globnames  = Ser_globnames
+module GenConstr = Ser_genConstr
 
 type sort_name_expr =
   [%import: Constrexpr.sort_name_expr]
@@ -46,10 +46,6 @@ type sort_name_expr =
 
 type univ_level_expr =
   [%import: Constrexpr.univ_level_expr]
-  [@@deriving sexp,yojson,hash,compare]
-
-type qvar_expr =
-  [%import: Constrexpr.qvar_expr]
   [@@deriving sexp,yojson,hash,compare]
 
 type quality_expr =

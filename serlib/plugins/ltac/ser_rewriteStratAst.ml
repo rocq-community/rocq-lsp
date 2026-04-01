@@ -14,14 +14,30 @@
 (* Written by: Emilio J. Gallego Arias and others                       *)
 (************************************************************************)
 
-type unary_strategy = Rewrite.unary_strategy
-  [@@deriving sexp, hash, compare]
+open Ppx_hash_lib.Std.Hash.Builtin
+open Ppx_compare_lib.Builtin
+open Sexplib.Conv
 
-type binary_strategy = Rewrite.binary_strategy
-  [@@deriving sexp, hash, compare]
+type unary_strategy =
+  [%import: Ltac_plugin.RewriteStratAst.unary_strategy]
+  [@@deriving sexp,hash,compare]
 
-type ('a,'b,'c) strategy_ast = ('a,'b,'c) Rewrite.strategy_ast
-  [@@deriving sexp, hash, compare]
+type binary_strategy =
+  [%import: Ltac_plugin.RewriteStratAst.binary_strategy]
+  [@@deriving sexp,hash,compare]
+
+type nary_strategy =
+  [%import: Ltac_plugin.RewriteStratAst.nary_strategy]
+  [@@deriving sexp,hash,compare]
+
+type ('a,'b,'c,'d,'e) strategy_ast =
+  [%import: ('a,'b,'c,'d,'e) Ltac_plugin.RewriteStratAst.strategy_ast]
+  [@@deriving sexp,hash,compare]
 
 type strategy = Rewrite.strategy
-  [@@deriving sexp, hash, compare]
+
+let strategy_of_sexp = Serlib.Serlib_base.opaque_of_sexp ~typ:"rewrite/strategy"
+let sexp_of_strategy = Serlib.Serlib_base.sexp_of_opaque ~typ:"rewrite/strategy"
+let hash_strategy = Hashtbl.hash
+let hash_fold_strategy st d = Ppx_hash_lib.Std.Hash.Builtin.hash_fold_int st (Hashtbl.hash d)
+let compare_strategy = Stdlib.compare

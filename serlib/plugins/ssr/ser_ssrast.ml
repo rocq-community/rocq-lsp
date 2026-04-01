@@ -35,6 +35,8 @@ end
 
 module Ltac_plugin = struct
   module Tacexpr = Serlib_ltac.Ser_tacexpr
+  module Tacinterp = Serlib_ltac.Ser_tacinterp
+  module Tacarg = Serlib_ltac.Ser_tacarg
 end
 
 type ssrtermkind = Ssrmatching_plugin.Ssrmatching.ssrtermkind

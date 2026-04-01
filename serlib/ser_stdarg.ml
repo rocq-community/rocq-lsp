@@ -45,8 +45,14 @@ let ser_wit_hyp : (Ser_names.lident, Ser_names.lident, Ser_names.Id.t) Ser_genar
   ; top_compare = Ser_names.Id.compare
   }
 
-(* Same *)
-let ser_wit_identref = ser_wit_hyp
+
+module IDR = struct
+  type t = Names.lident
+  [@@deriving sexp,hash,compare]
+end
+
+let ser_wit_identref =
+  let module M = Ser_genarg.GSV(IDR) in M.genser
 
 let ser_wit_nat_or_var = Ser_genarg.
   { raw_ser = Ser_locus.sexp_of_or_var sexp_of_int

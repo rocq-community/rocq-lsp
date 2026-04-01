@@ -55,14 +55,6 @@ type key =
   [%import: Environ.key]
   [@@deriving sexp,yojson,hash,compare]
 
-type constant_key =
-  [%import: Environ.constant_key]
-  [@@deriving sexp,yojson,hash,compare]
-
-type mind_key =
-  [%import: Environ.mind_key]
-  [@@deriving sexp,yojson,hash,compare]
-
 module InternalEnv =
 struct
   type _t =

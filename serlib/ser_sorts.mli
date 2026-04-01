@@ -43,3 +43,6 @@ module ElimConstraint : sig
 end
 
 module ElimConstraints : SerType.SJHC with type t = Sorts.ElimConstraints.t
+
+type printer = Sorts.printer
+[@@deriving sexp,yojson,hash,compare]

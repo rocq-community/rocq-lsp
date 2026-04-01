@@ -1614,32 +1614,29 @@ let intern_sort_name ~local_univs = function
           CErrors.user_err ?loc:qid.loc
             Pp.(str "Undeclared universe " ++ pr_qualid qid ++ str ".")))
 
-let intern_qvar ~local_univs = function
+let intern_quality ~local_univs = function
   | CQAnon loc -> GLocalQVar (CAst.make ?loc Anonymous)
-  | CRawQVar q -> GRawQVar q
-  | CQVar qid -> (
+  | CRawQuality (QVar q) -> GRawQVar q
+  | CRawQuality _ -> assert false (* intern on raw quality only used for funind hacks *)
+  | CQConstant q -> GQuality (QConstant q)
+  | CQVar qid ->
     let is_id = qualid_is_ident qid in
-    let local =
-      if not is_id then None
+    let local = if not is_id then None
       else Id.Map.find_opt (qualid_basename qid) (fst local_univs.bound)
     in
     match local with
-    | Some u -> GQVar u
+    | Some u -> GQuality (QVar u)
     | None ->
-      if is_id && local_univs.unb_univs then
-        GLocalQVar (CAst.make ?loc:qid.loc (Name (qualid_basename qid)))
-      else
-        CErrors.user_err ?loc:qid.loc
-          Pp.(str "Undeclared quality " ++ pr_qualid qid ++ str "."))
+      try GQuality (Nametab.Quality.locate qid)
+      with Not_found ->
+        if is_id && local_univs.unb_univs
+        then GLocalQVar (CAst.make ?loc:qid.loc (Name (qualid_basename qid)))
+        else
+          CErrors.user_err ?loc:qid.loc Pp.(str "Undeclared quality " ++ pr_qualid qid ++ str".")
 
-let intern_quality ~local_univs q =
-  match q with
-  | CQConstant q -> GQConstant q
-  | CQualVar q -> GQualVar (intern_qvar ~local_univs q)
-
-let intern_sort ~local_univs (q, l) =
-  ( Option.map (intern_qvar ~local_univs) q
-  , map_glob_sort_gen (List.map (on_fst (intern_sort_name ~local_univs))) l )
+let intern_sort ~local_univs (q,l) =
+  Option.map (intern_quality ~local_univs) q,
+  map_glob_sort_gen (List.map (on_fst (intern_sort_name ~local_univs))) l
 
 let intern_instance ~local_univs = function
   | None -> None
@@ -2354,7 +2351,7 @@ let drop_notations_pattern (test_kind_top, test_kind_inner) genv env pat =
         | CPatPrim (Number (_, p)) -> p
         | _ -> assert false
       in
-      let pat, _df =
+      let pat =
         Notation.interp_prim_token_cases_pattern_expr ?loc
           (check_allowed_ref_in_pat test_kind)
           (Number (SMinus, p))
@@ -2380,7 +2377,7 @@ let drop_notations_pattern (test_kind_top, test_kind_inner) genv env pat =
       in
       in_pat test_kind scopes e
     | CPatPrim p ->
-      let pat, _df =
+      let pat =
         Notation.interp_prim_token_cases_pattern_expr ?loc
           (check_allowed_ref_in_pat test_kind)
           p scopes
@@ -2916,9 +2913,7 @@ let list_notations_and_internalize globalenv env pattern_mode
       | CGeneralization (b, c) ->
         intern_generalization intern env ntnvars loc b c
       | CPrim p ->
-        let c =
-          fst (Notation.interp_prim_token ?loc p (env.tmp_scope, env.scopes))
-        in
+        let c = Notation.interp_prim_token ?loc p (env.tmp_scope, env.scopes) in
         apply_impargs env loc c []
       | CDelimiters (depth, key, e) ->
         let sc = find_delimiters_scope ?loc key in
@@ -3075,7 +3070,7 @@ let list_notations_and_internalize globalenv env pattern_mode
             Some
               (DAst.make
               @@ GCases
-                   ( RegularStyle
+                   ( MatchStyle
                    , sub_rtn
                    , sub_tms
                    , main_sub_eqn :: catch_all_sub_eqn ))
@@ -3151,8 +3146,9 @@ let list_notations_and_internalize globalenv env pattern_mode
         (* Propagating enough information for mutual interning with
            tac-in-term *)
         let intern_sign =
-          { Genintern.intern_ids = env.ids
-          ; Genintern.notation_variable_status = ntnvars
+          { Genintern.intern_ids = env.ids;
+            Genintern.intern_univs = env.local_univs.bound;
+            Genintern.notation_variable_status = ntnvars
           }
         in
         let ist =
@@ -3167,10 +3163,10 @@ let list_notations_and_internalize globalenv env pattern_mode
           }
         in
         let intern =
-          if pattern_mode then Genintern.generic_intern_pat ?loc
-          else Genintern.generic_intern
+          if pattern_mode then Genintern.generic_intern_pat
+          else Genintern.generic_intern_constr
         in
-        let _, glb = intern ist gen in
+        let glb = intern ?loc ist gen in
         DAst.make ?loc @@ GGenarg glb
       (* Parsing pattern variables *)
       | CPatVar n when pattern_mode ->

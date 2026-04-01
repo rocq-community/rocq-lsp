@@ -88,6 +88,11 @@ module Equality   = Ser_equality
 module Inv        = Ser_inv
 module Evaluable  = Ser_evaluable
 
+module Ltac_plugin = struct
+  module Tacexpr = Ltac_plugin.Tacexpr
+  module RewriteStratAst = Ser_rewriteStratAst
+end
+
 type direction_flag =
   [%import: Ltac_plugin.Tacexpr.direction_flag]
   [@@deriving sexp,yojson,hash,compare]
@@ -918,3 +923,8 @@ type tacdef_body =
 type intro_pattern =
   [%import: Ltac_plugin.Tacexpr.intro_pattern]
   [@@deriving sexp,yojson,hash,compare]
+
+type raw_strategy = [%import: Ltac_plugin.Tacexpr.raw_strategy]
+  [@@deriving sexp,hash,compare]
+type glob_strategy = [%import: Ltac_plugin.Tacexpr.glob_strategy]
+  [@@deriving sexp,hash,compare]

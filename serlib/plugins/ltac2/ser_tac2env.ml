@@ -21,14 +21,12 @@ module Tac2expr = Ser_tac2expr
 
 module WLC2 = struct
   type raw = Tac2expr.raw_tacexpr
-  [@@deriving sexp,hash,compare]
+  [@@deriving sexp,yojson,hash,compare]
   type glb = Names.Id.Set.t * Tac2expr.glb_tacexpr
-  [@@deriving sexp,hash,compare]
-  type top = Util.Empty.t
-  [@@deriving sexp,hash,compare]
+  [@@deriving sexp,yojson,hash,compare]
 end
 
-let ser_wit_ltac2_constr = let module M = Ser_genarg.GS(WLC2) in M.genser
+let ser_wit_ltac2_constr = let module M = Ser_genConstr.GS(WLC2) in M.genser
 
 type var_quotation_kind =
   [%import: Ltac2_plugin.Tac2env.var_quotation_kind]
@@ -36,18 +34,16 @@ type var_quotation_kind =
 
 module WLQ2 = struct
   type raw = Names.lident option * Names.lident
-  [@@deriving sexp,hash,compare]
+  [@@deriving sexp,yojson,hash,compare]
   type glb = var_quotation_kind * Names.Id.t
-  [@@deriving sexp,hash,compare]
-  type top = Util.Empty.t
-  [@@deriving sexp,hash,compare]
+  [@@deriving sexp,yojson,hash,compare]
 end
 
-let ser_wit_ltac2_var_quotation = let module M = Ser_genarg.GS(WLQ2) in M.genser
+let ser_wit_ltac2_var_quotation = let module M = Ser_genConstr.GS(WLQ2) in M.genser
 
 let register () =
-  Ser_genarg.register_genser Tac2env.wit_ltac2_constr ser_wit_ltac2_constr;
-  Ser_genarg.register_genser Tac2env.wit_ltac2_var_quotation ser_wit_ltac2_var_quotation;
+  Ser_genConstr.register Tac2env.wit_ltac2_constr ser_wit_ltac2_constr;
+  Ser_genConstr.register Tac2env.wit_ltac2_var_quotation ser_wit_ltac2_var_quotation;
   ()
 
 let () = register ()

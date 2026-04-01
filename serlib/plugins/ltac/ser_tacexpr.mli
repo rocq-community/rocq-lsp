@@ -286,3 +286,9 @@ type tacdef_body = Tacexpr.tacdef_body
 
 type intro_pattern = Tacexpr.intro_pattern
   [@@deriving sexp,hash,compare]
+
+type raw_strategy = Tacexpr.raw_strategy
+  [@@deriving sexp,hash,compare]
+
+type glob_strategy = Tacexpr.glob_strategy
+  [@@deriving sexp,hash,compare]

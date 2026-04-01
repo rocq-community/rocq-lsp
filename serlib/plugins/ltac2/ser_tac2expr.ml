@@ -27,13 +27,7 @@ let rec ltac2_expr_ci (e : Ltac2_plugin.Tac2expr.raw_tacexpr) : CI.t list =
   | CTacFun (_args, body) -> [m range "fun"] @ ltac2_expr_ci body
   | CTacApp (fn, args) ->
     [m range "app"] @ ltac2_expr_ci fn @ List.concat_map ltac2_expr_ci args
-  | CTacSyn (ll, kname) ->
-    let f (lname, expr) : CI.t list =
-      let msg = Format.asprintf "lname: %a" Pp.pp_with (NID.print lname.CAst.v) in
-      [CI.make drange msg] @ ltac2_expr_ci expr
-    in
-    let kname = KN.to_string kname in
-    CI.make drange kname :: List.concat_map f ll
+  | CTacSyn _ -> [m range "nota"]
   | CTacLet (_, cases, expr) -> [m range "let"]
                                 @ List.concat_map (fun (_, er) -> ltac2_expr_ci er) cases
                                 @ ltac2_expr_ci expr
@@ -134,8 +128,8 @@ type ltac_constant =
   [%import: Ltac2_plugin.Tac2expr.ltac_constant]
   [@@deriving sexp,yojson,hash,compare]
 
-type ltac_alias =
-  [%import: Ltac2_plugin.Tac2expr.ltac_alias]
+type ltac_abbrev =
+  [%import: Ltac2_plugin.Tac2expr.ltac_abbrev]
   [@@deriving sexp,yojson,hash,compare]
 
 type ltac_constructor =
@@ -215,6 +209,9 @@ module GT2E = Serlib.SerType.Pierce(GT2ESpec)
 type glb_tacexpr = GT2E.t
   [@@deriving sexp,yojson,hash,compare]
 
+(* TODO implement some fancy stuff? *)
+module TacSyn = SerType.Opaque(struct type t let name = "tac2syn" end)
+
 module T2ESpec = struct
   type t = Ltac2_plugin.Tac2expr.raw_tacexpr_r
   open Ltac2_plugin.Tac2expr
@@ -224,7 +221,7 @@ module T2ESpec = struct
     | CTacCst of ltac_constructor or_tuple or_relid
     | CTacFun of raw_patexpr list * raw_tacexpr
     | CTacApp of raw_tacexpr * raw_tacexpr list
-    | CTacSyn of (Names.lname * raw_tacexpr) list * Names.KerName.t
+    | CTacSyn of TacSyn.t
     | CTacLet of rec_flag * (raw_patexpr * raw_tacexpr) list * raw_tacexpr
     | CTacCnv of raw_tacexpr * raw_typexpr
     | CTacSeq of raw_tacexpr * raw_tacexpr

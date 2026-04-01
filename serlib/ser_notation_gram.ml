@@ -25,6 +25,7 @@ module Extend        = Ser_extend
 module Gramlib       = Ser_gramlib
 module PrimNotations = Ser_primNotations
 module Notationextern = Ser_notationextern
+module Procq = Ser_procq
 
 (* type precedence =
  *   [%import: Notation_gram.precedence]

@@ -114,7 +114,7 @@ type constant_body =
 
 let sexp_of_constant_body e =
   (* We cannot handle VM values *)
-  sexp_of_constant_body { e with const_body_code = None }
+  sexp_of_constant_body { e with const_body_code = BCuncompiled }
 
 (*
 module Retroknowledge =
