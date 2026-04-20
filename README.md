@@ -2,18 +2,6 @@
 
 [![Github CI][ci-badge]][ci-link]
 
-> **⚠️ Repository Archived**
->
-> As of version 0.2.5, this repository is no longer actively maintained and will be archived soon.
->
-> The code and Flèche technical report will remain available for reference, but no further updates, issues, or pull requests will be addressed.
->
-> We are currently looking for new maintainers.
-> Once a maintainer (or team) steps forward, we will link to them here.
->
-> If you’re interested in maintaining **rocq-lsp**, please stop by the discussion on this Zulip thread:
-> _[https://rocq-prover.zulipchat.com/#narrow/channel/329642-rocq-lsp/topic/Release.200.2E2.2E5]_
-
 `rocq-lsp` is a [Language Server](https://microsoft.github.io/language-server-protocol/) for the [Rocq Prover](https://rocq-prover.org/). It provides a single server that implements:
 
 - the [LSP](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/)
