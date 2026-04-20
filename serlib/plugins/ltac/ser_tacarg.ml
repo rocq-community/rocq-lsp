@@ -22,6 +22,11 @@ open Serlib
 
 open Ltac_plugin
 
+module TV = SerType.Opaque(struct type t = Tacarg.tacvalue let name = "tacvalue" end)
+
+type tacvalue = TV.t
+[@@deriving sexp,hash,compare]
+
 module CAst         = Ser_cAst
 module Names        = Ser_names
 module Constrexpr   = Ser_constrexpr
@@ -39,7 +44,7 @@ module Gentactic    = Ser_gentactic
 
 module Ltac_plugin = struct
   module G_rewrite    = G_rewrite
-  module Rewrite      = Ser_rewrite
+  module RewriteStratAst      = Ser_rewriteStratAst
   module Tacexpr      = Ser_tacexpr
   module Tacentries   = Ser_tacentries
 end
@@ -77,7 +82,7 @@ module A3 = struct
   [@@deriving sexp,hash,compare]
   type glb = Tacexpr.glob_tactic_expr
   [@@deriving sexp,hash,compare]
-  type top = Ser_geninterp.Val.t
+  type top = tacvalue
   [@@deriving sexp,hash,compare]
 end
 
@@ -85,14 +90,12 @@ let ser_wit_tactic = let module M = Ser_genarg.GS(A3) in M.genser
 
 module A4 = struct
   type raw = Tacexpr.raw_tactic_expr
-  [@@deriving sexp,hash,compare]
+  [@@deriving sexp,hash,yojson,compare]
   type glb = Tacexpr.glob_tactic_expr
-  [@@deriving sexp,hash,compare]
-  type top = unit
-  [@@deriving sexp,hash,compare]
+  [@@deriving sexp,hash,yojson,compare]
 end
 
-let ser_wit_ltac = let module M = Ser_genarg.GS(A4) in M.genser
+let ser_wit_ltac = let module M = Ser_gentactic.GS(A4) in M.genser
 
 module A5 = struct
   type t = Ser_tactypes.quantified_hypothesis [@@deriving sexp,hash,compare]
@@ -220,29 +223,14 @@ end
 
 let ser_wit_binders = let module M = Ser_genarg.GSV(GT0) in M.genser
 
-let wit_glob_constr_with_bindings = Ltac_plugin.G_rewrite.wit_glob_constr_with_bindings
-
-module GT1 = struct
-  type raw = Constrexpr.constr_expr Tactypes.with_bindings
-  [@@deriving sexp,hash,compare]
-  type glb = Genintern.glob_constr_and_expr Tactypes.with_bindings
-  [@@deriving sexp,hash,compare]
-  type top = Geninterp.interp_sign * Genintern.glob_constr_and_expr Tactypes.with_bindings
-  [@@deriving sexp,hash,compare]
-end
-
-let ser_wit_glob_constr_with_bindings = let module M = Ser_genarg.GS(GT1) in M.genser
-
 let wit_rewstrategy = Ltac_plugin.G_rewrite.wit_rewstrategy
 
 module GT2 = struct
-  type raw =
-    [%import: Ltac_plugin.Tacexpr.raw_strategy]
+  type raw = Ltac_plugin.Tacexpr.raw_strategy
   [@@deriving sexp,hash,compare]
-  type glb =
-    [%import: Ltac_plugin.Tacexpr.glob_strategy]
+  type glb = Ltac_plugin.Tacexpr.glob_strategy
   [@@deriving sexp,hash,compare]
-  type top = Ltac_plugin.Rewrite.strategy
+  type top = Ltac_plugin.RewriteStratAst.strategy
   [@@deriving sexp,hash,compare]
 end
 
@@ -362,12 +350,11 @@ module GT7 = struct
   [@@deriving sexp,hash,compare]
   type glb = Tacexpr.glob_tactic_expr option
   [@@deriving sexp,hash,compare]
-  type top = Geninterp.Val.t option
+  type top = tacvalue option
   [@@deriving sexp,hash,compare]
 end
 
-let ser_wit_by_arg_tac :
-  (Tacexpr.raw_tactic_expr option, Tacexpr.glob_tactic_expr option, Tacinterp.value option) Ser_genarg.gen_ser =
+let ser_wit_by_arg_tac =
   let module M = Ser_genarg.GS(GT7) in M.genser
 
 let ser_wit_lpar_id_colon =
@@ -393,7 +380,7 @@ let register () =
   Ser_genarg.register_genser Tacarg.wit_destruction_arg ser_wit_destruction_arg;
   Ser_genarg.register_genser Tacarg.wit_simple_intropattern  ser_wit_simple_intropattern;
   (* Ser_genarg.register_genser Tacarg.wit_intro_pattern ser_wit_intropattern; *)
-  Ser_genarg.register_genser Tacarg.wit_ltac ser_wit_ltac;
+  Ser_gentactic.register Tacarg.wit_ltac ser_wit_ltac;
   Ser_genarg.register_genser Tacarg.wit_quant_hyp ser_wit_quant_hyp;
   (* Ser_genarg.register_genser Tacarg.wit_quantified_hypothesis ser_wit_quant_hyp; *)
   Ser_genarg.register_genser Tacarg.wit_tactic ser_wit_tactic;
@@ -412,7 +399,6 @@ let register () =
   Ser_genarg.register_genser G_auto.wit_opthints ser_wit_opthints;
 
   Ser_genarg.register_genser G_rewrite.wit_binders G_rewrite.ser_wit_binders;
-  Ser_genarg.register_genser G_rewrite.wit_glob_constr_with_bindings G_rewrite.ser_wit_glob_constr_with_bindings;
   Ser_genarg.register_genser G_rewrite.wit_rewstrategy G_rewrite.ser_wit_rewstrategy;
 
   Ser_genarg.register_genser G_class.wit_debug ser_wit_debug;

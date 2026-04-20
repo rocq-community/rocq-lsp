@@ -25,6 +25,7 @@ module Notation_term = Ser_notation_term
 module Constrexpr    = Ser_constrexpr
 module Gramlib       = Ser_gramlib
 module Globnames     = Ser_globnames
+module Procq = Ser_procq
 
 type production_position =
   [%import: Extend.production_position]

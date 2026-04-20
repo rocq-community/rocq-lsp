@@ -16,5 +16,8 @@
 
 open Ltac_plugin
 
+type tacvalue = Tacarg.tacvalue
+[@@deriving sexp,hash,compare]
+
 val ser_wit_tactic :
-  (Tacexpr.raw_tactic_expr, Tacexpr.glob_tactic_expr, Geninterp.Val.t) Serlib.Ser_genarg.gen_ser
+  (Tacexpr.raw_tactic_expr, Tacexpr.glob_tactic_expr, Tacarg.tacvalue) Serlib.Ser_genarg.gen_ser

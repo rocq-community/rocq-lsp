@@ -18,13 +18,14 @@ module Loc = Ser_loc
 module CAst = Ser_cAst
 module Names = Ser_names
 module Tac2expr = Serlib_ltac2.Ser_tac2expr
+module Geninterp = Ser_geninterp
 
 module WL2in1 = struct
   type raw = Tac2expr.uid CAst.t list * Tac2expr.raw_tacexpr
   [@@deriving sexp,hash,compare]
   type glb = Tac2expr.uid list * Tac2expr.glb_tacexpr
   [@@deriving sexp,hash,compare]
-  type top = Util.Empty.t
+  type top = Geninterp.Val.t
   [@@deriving sexp,hash,compare]
 end
 
@@ -35,7 +36,7 @@ module WL2in1V = struct
   [@@deriving sexp,hash,compare]
   type glb = Tac2expr.glb_tacexpr
   [@@deriving sexp,hash,compare]
-  type top = Util.Empty.t
+  type top = Geninterp.Val.t
   [@@deriving sexp,hash,compare]
 end
 
@@ -46,7 +47,7 @@ module WLV2 = struct
   [@@deriving sexp,hash,compare]
   type glb = unit
   [@@deriving sexp,hash,compare]
-  type top = Util.Empty.t
+  type top = Geninterp.Val.t
   [@@deriving sexp,hash,compare]
 end
 

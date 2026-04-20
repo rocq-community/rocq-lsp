@@ -32,7 +32,7 @@ module Float64    = Ser_float64
 module Pstring    = Ser_pstring
 module Constr     = Ser_constr
 module Libnames   = Ser_libnames
-module Genarg     = Ser_genarg
+module GenConstr     = Ser_genConstr
 module Evar_kinds = Ser_evar_kinds
 module Namegen    = Ser_namegen
 module Sorts      = Ser_sorts
@@ -78,16 +78,12 @@ type glob_constraint =
  *   [%import: Glob_term.sort_info]
  *   [@@deriving sexp,yojson] *)
 
-type glob_qvar =
-  [%import: Glob_term.glob_qvar]
+type glob_quality =
+  [%import: Glob_term.glob_quality]
   [@@deriving sexp,yojson,hash,compare]
 
 type glob_relevance =
   [%import: Glob_term.glob_relevance]
-  [@@deriving sexp,yojson,hash,compare]
-
-type glob_quality =
-  [%import: Glob_term.glob_quality]
   [@@deriving sexp,yojson,hash,compare]
 
 type glob_sort =

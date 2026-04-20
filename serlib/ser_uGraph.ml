@@ -36,10 +36,6 @@ let path_explanation_of_sexp = Serlib_base.opaque_of_sexp ~typ:"UGraph.path_expl
 type explanation = [%import: UGraph.explanation]
   [@@deriving sexp]
 
-type univ_variable_printers =
-  [%import: UGraph.univ_variable_printers]
-  [@@deriving sexp]
-
 type univ_inconsistency =
   [%import: UGraph.univ_inconsistency]
   [@@deriving sexp]

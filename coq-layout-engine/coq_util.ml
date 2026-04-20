@@ -90,14 +90,10 @@ module Id = struct
   (* Uh, this requires to use the global env... *)
   let type_of_global gref =
     let env = Global.env () in
-    let typ, _univs = Typeops.type_of_global_in_context env gref in
+    let typ, auctx = Typeops.type_of_global_in_context env gref in
     let typ = Arguments_renaming.rename_type env typ gref in
-    let bl =
-      Printer.universe_binders_with_opt_names
-        (Environ.universes_of_global env gref)
-        None
-    in
-    let sigma = Evd.from_ctx (UState.of_names bl) in
+    let auctx = Printer.fill_names auctx in
+    let sigma = Evd.from_auctx env auctx in
     Constrextern.extern_type ~flags:(PrintingFlags.current ()) env sigma
       (EConstr.of_constr typ)
 

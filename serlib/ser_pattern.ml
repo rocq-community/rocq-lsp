@@ -31,7 +31,7 @@ module Evar      = Ser_evar
 module EConstr   = Ser_eConstr
 module Glob_term = Ser_glob_term
 module UnivGen   = Ser_univGen
-module Genarg    = Ser_genarg
+module GenConstr = Ser_genConstr
 
 type patvar =
   [%import: Pattern.patvar]

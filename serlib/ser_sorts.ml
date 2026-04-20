@@ -87,3 +87,8 @@ module ElimConstraint = struct
 end
 
 module ElimConstraints = Ser_cSet.Make(Sorts.ElimConstraints)(ElimConstraint)
+
+module AbstractPrinter = SerType.Opaque(struct type t = Sorts.printer let name = "Sorts.printer" end)
+
+type printer = AbstractPrinter.t
+[@@deriving sexp,yojson,hash,compare]

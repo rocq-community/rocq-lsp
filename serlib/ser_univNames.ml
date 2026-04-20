@@ -21,11 +21,12 @@ open Ppx_compare_lib.Builtin
 open Sexplib.Conv
 
 module Names       = Ser_names
+module Sorts = Ser_sorts
+module Univ = Ser_univ
 
 type univ_name_list =
   [%import: UnivNames.univ_name_list]
   [@@deriving sexp,yojson,hash,compare]
 
-type full_name_list =
-  [%import: UnivNames.full_name_list]
+type universe_binders = [%import: UnivNames.universe_binders]
   [@@deriving sexp,yojson,hash,compare]

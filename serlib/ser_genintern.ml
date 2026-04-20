@@ -27,6 +27,7 @@ module Glob_term  = Ser_glob_term
 module Constrexpr = Ser_constrexpr
 module Pattern    = Ser_pattern
 module Notation_term = Ser_notation_term
+module UnivNames = Ser_univNames
 
 module Store = struct
 

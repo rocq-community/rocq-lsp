@@ -64,8 +64,8 @@ module A0 = struct
   type glb = Ltac_plugin.Tacexpr.glob_tactic_expr fwdbinders
   [@@deriving sexp,yojson,hash,compare]
 
-  type top = Geninterp.Val.t fwdbinders
-  [@@deriving sexp,yojson,hash,compare]
+  type top = Ltac_plugin.Tacarg.tacvalue fwdbinders
+  [@@deriving sexp,hash,compare]
 end
 
 let ser_wit_ssrhavefwdwbinders = let module M = Ser_genarg.GS(A0) in M.genser
@@ -90,8 +90,8 @@ module A1 = struct
   [@@deriving sexp,yojson,hash,compare]
   type glb = Ltac_plugin.Tacexpr.glob_tactic_expr ssrhint
   [@@deriving sexp,yojson,hash,compare]
-  type top = Geninterp.Val.t ssrhint
-  [@@deriving sexp,yojson,hash,compare]
+  type top = Ltac_plugin.Tacarg.tacvalue ssrhint
+  [@@deriving sexp,hash,compare]
 end
 
 let ser_wit_ssrhintarg = let module M = Ser_genarg.GS(A1) in M.genser
@@ -103,8 +103,8 @@ module A2 = struct
   type glb = Serlib_ltac.Ser_tacexpr.glob_tactic_expr ssrseqarg
   [@@deriving sexp,yojson,hash,compare]
 
-  type top = Geninterp.Val.t ssrseqarg
-  [@@deriving sexp,yojson,hash,compare]
+  type top = Ltac_plugin.Tacarg.tacvalue ssrseqarg
+  [@@deriving sexp,hash,compare]
 end
 
 let ser_wit_ssrseqarg = let module M = Ser_genarg.GS(A2) in M.genser
@@ -114,8 +114,8 @@ module A3 = struct
   [@@deriving sexp,yojson,hash,compare]
   type glb = Serlib_ltac.Ser_tacexpr.glob_tactic_expr * ssripats
   [@@deriving sexp,yojson,hash,compare]
-  type top = Geninterp.Val.t * ssripats
-  [@@deriving sexp,yojson,hash,compare]
+  type top = Ltac_plugin.Tacarg.tacvalue * ssripats
+  [@@deriving sexp,hash,compare]
 end
 
 let ser_wit_ssrintrosarg = let module M = Ser_genarg.GS(A3) in M.genser
@@ -125,8 +125,8 @@ module A4 = struct
   [@@deriving sexp,yojson,hash,compare]
   type glb = Serlib_ltac.Ser_tacexpr.glob_tactic_expr ffwbinders
   [@@deriving sexp,yojson,hash,compare]
-  type top = Geninterp.Val.t ffwbinders
-  [@@deriving sexp,yojson,hash,compare]
+  type top = Ltac_plugin.Tacarg.tacvalue ffwbinders
+  [@@deriving sexp,hash,compare]
 end
 
 let ser_wit_ssrsufffwd = let module M = Ser_genarg.GS(A4) in M.genser
@@ -143,8 +143,8 @@ module A6 = struct
   [@@deriving sexp,yojson,hash,compare]
   type glb = Serlib_ltac.Ser_tacexpr.glob_tactic_expr ssrdoarg
   [@@deriving sexp,yojson,hash,compare]
-  type top = Geninterp.Val.t ssrdoarg
-  [@@deriving sexp,yojson,hash,compare]
+  type top = Ltac_plugin.Tacarg.tacvalue ssrdoarg
+  [@@deriving sexp,hash,compare]
 end
 
 let ser_wit_ssrdoarg = let module M = Ser_genarg.GS(A6) in M.genser
@@ -161,8 +161,8 @@ module A8 = struct
   [@@deriving sexp,yojson,hash,compare]
   type glb = Serlib_ltac.Ser_tacexpr.glob_tactic_expr ssrhint
   [@@deriving sexp,yojson,hash,compare]
-  type top = Geninterp.Val.t ssrhint
-  [@@deriving sexp,yojson,hash,compare]
+  type top = Ltac_plugin.Tacarg.tacvalue ssrhint
+  [@@deriving sexp,hash,compare]
 end
 
 let ser_wit_ssrhint = let module M = Ser_genarg.GS(A8) in M.genser

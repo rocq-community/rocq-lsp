@@ -22,6 +22,9 @@ open Serlib
 
 module Genintern = Ser_genintern
 module Geninterp = Ser_geninterp
+module Ltac_plugin = struct
+  module Tacinterp = Serlib_ltac.Ser_tacinterp
+end
 
 type ssrtermkind =
   [%import: Ssrmatching_plugin.Ssrmatching.ssrtermkind]

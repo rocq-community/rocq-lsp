@@ -33,3 +33,5 @@ module RTreePierce = struct
 end
 
 include SerType.Pierce1(RTreePierce)
+
+module Automaton = SerType.Opaque1(struct type 'a t = 'a Rtree.Automaton.t let name = "Rtree.Automaton" end)

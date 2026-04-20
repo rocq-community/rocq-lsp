@@ -8,17 +8,10 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-(************************************************************************)
-(* SerAPI: Coq interaction protocol with bidirectional serialization    *)
-(************************************************************************)
-(* Copyright 2016-2019 MINES ParisTech -- License LGPL 2.1+             *)
-(* Copyright 2019-2023 Inria           -- License LGPL 2.1+             *)
-(* Written by: Emilio J. Gallego Arias and others                       *)
-(************************************************************************)
+type ty_pattern = [%import: Procq.ty_pattern]
 
-module Val : sig
+let sexp_of_ty_pattern (Procq.TPattern t) =
+  Ser_tok.sexp_of_p (fun _ -> assert false) t
 
-  type t = Geninterp.Val.t
-  [@@deriving sexp,yojson,hash,compare]
-
-end
+let ty_pattern_of_sexp s =
+  Procq.TPattern (Ser_tok.p_of_sexp (fun _ -> assert false) s)
