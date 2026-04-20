@@ -292,11 +292,11 @@ ready.
 
 ### 🏘️ Supported Rocq and OCaml Versions
 
-`rocq-lsp` supports Rocq 9.1, Rocq 9.0, Coq 8.20, and Rocq's `master`
+`rocq-lsp` supports Rocq 9.2, Rocq 9.1, Rocq 9.0, Coq 8.20, and Rocq's `master`
 branch. Code for each Rocq version can be found in the corresponding branch. We
 support OCaml 4.14, 5.3, and 5.4.
 
-We recommended using Rocq 9.1 or `master` version. For other Rocq versions, we
+We recommended using Rocq 9.2 or `master` version. For other Rocq versions, we
 recommend users to install the custom Rocq tree as detailed in [Rocq Upstream
 Bugs](#rocq-upstream-bugs).
 
