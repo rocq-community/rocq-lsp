@@ -19,11 +19,15 @@
 module Univ = Ser_univ
 module Names = Ser_names
 
+open Sexplib.Std
+open Ppx_compare_lib.Builtin
+open Ppx_hash_lib.Std.Hash.Builtin
+
 module BijectQGlobal = struct
   type t = Sorts.QGlobal.t
-  type _t = Names.DirPath.t * Names.Id.t [@@deriving sexp,yojson,hash,compare]
+  type _t = Names.DirPath.t * int [@@deriving sexp,yojson,hash,compare]
   let of_t = Sorts.QGlobal.repr
-  let to_t (dp,id) = Sorts.QGlobal.make dp id
+  let to_t (dp,uid) = Sorts.QGlobal.make dp uid
 end
 
 module QGlobal = SerType.Biject(BijectQGlobal)
