@@ -21,3 +21,4 @@ module Self : SerType.SJHC with type t = Evar.t
 include module type of Self
 
 module Set : SerType.SJHC with type t = Evar.Set.t
+module Map : SerType.SJHC1 with type 'a t = 'a Evar.Map.t

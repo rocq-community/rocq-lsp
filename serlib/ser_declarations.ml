@@ -21,6 +21,7 @@ open Ppx_hash_lib.Std.Hash.Builtin
 open Ppx_compare_lib.Builtin
 let hash_fold_array = hash_fold_array_frozen
 
+module Evar    = Ser_evar
 module Rtree   = Ser_rtree
 module Names   = Ser_names
 module Context = Ser_context
@@ -145,6 +146,23 @@ type mutual_inductive_body =
 
 type ('q, 'u) instance_mask =
   [%import: ('q, 'u) UVars.Instance.mask]
+  [@@deriving sexp,yojson,hash,compare]
+
+type 'arg name_annotated =
+  [%import: 'arg Declarations.name_annotated]
+  [@@deriving sexp,yojson,hash,compare]
+
+type pattern =
+  [%import: Declarations.pattern
+    [@with sort_pattern := Sorts.pattern]]
+  [@@deriving sexp,yojson,hash,compare]
+
+and arg_pattern =
+  [%import: Declarations.arg_pattern]
+  [@@deriving sexp,yojson,hash,compare]
+
+type rewrite_rule =
+  [%import: Declarations.rewrite_rule]
   [@@deriving sexp,yojson,hash,compare]
 
 type head_pattern =
