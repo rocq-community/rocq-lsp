@@ -2,31 +2,32 @@ diff --git a/engine/logic_monad.ml b/engine/logic_monad.ml
 index 1b7f2799e2..11f3621a88 100644
 --- a/engine/logic_monad.ml
 +++ b/engine/logic_monad.ml
-@@ -147,6 +147,16 @@ type ('a, 'b, 'e) list_view_ =
+@@ -149,6 +149,14 @@ type ('a, 'b, 'e) list_view_ =
  
  type ('a, 'b, 'e) list_view = ('a, 'e -> 'b, 'e) list_view_
  
-+
 +type 'a thunk =
-+    | Fin of 'a
-+    | TailCall of (unit -> 'a thunk)
++  | Fin of 'a
++  | TailCall of (unit -> 'a thunk)
 +
 +let rec trampoline r = match r with
-+    | Fin a -> a
-+    | TailCall f -> trampoline (f ())
-+
++  | Fin a -> a
++  | TailCall f -> trampoline (f ())
 +
  module BackState =
  struct
  
-@@ -183,11 +193,11 @@ struct
+@@ -184,7 +192,7 @@ struct
+       [split] is pattern-matching. *)
  
    type ('a, 'i, 'o, 'e) t =
-       { iolist : 'r. 'i -> ('e -> 'r NonLogical.t) ->
--                     ('a -> 'o -> ('e -> 'r NonLogical.t) -> 'r NonLogical.t) ->
--                     'r NonLogical.t }
-+                     ('a -> 'o -> ('e -> 'r NonLogical.t) -> 'r NonLogical.t thunk) ->
-+                     'r NonLogical.t thunk }
+-    { iolist : 'r. 'i -> ('e -> 'r) -> ('a -> 'o -> ('e -> 'r) -> 'r) -> 'r }
++    { iolist : 'r. 'i -> ('e -> 'r) -> ('a -> 'o -> ('e -> 'r) -> 'r thunk) -> 'r thunk }
+   (* IMPORTANT: to play well with side-effects, all functions involved in the
+      above type must have AT LEAST the same arity as the one implied by their
+      type. This is to ensure that applying them to the expected arguments only
+@@ -203,7 +211,7 @@ struct
+      this property only in this module. *)
  
    let return x =
 -    { iolist = fun s nil cons -> cons x s nil }
@@ -34,7 +35,7 @@ index 1b7f2799e2..11f3621a88 100644
  
    let (>>=) m f =
      { iolist = fun s nil cons ->
-@@ -201,16 +211,16 @@ struct
+@@ -217,10 +225,10 @@ struct
      { iolist = fun s nil cons -> m.iolist s nil (fun x s next -> cons (f x) s next) }
  
    let zero e =
@@ -47,68 +48,50 @@ index 1b7f2799e2..11f3621a88 100644
  
    let ignore m =
      { iolist = fun s nil cons -> m.iolist s nil (fun _ s next -> cons () s next) }
+@@ -261,20 +269,20 @@ struct
+       and Terminating Monad Transformers" paper.  *)
+   type ('a, 'e) reified = { r : ('a, ('a, 'e) reified, 'e) list_view } [@@unboxed]
  
-   let lift m =
--    { iolist = fun s nil cons -> NonLogical.(m >>= fun x -> cons x s nil) }
-+    { iolist = fun s nil cons -> Fin NonLogical.(m >>= fun x -> trampoline @@ cons x s nil) }
+-  let rec reflect0 : type r. _ -> (_ -> r) -> (_ -> _ -> (_ -> r) -> r) -> r =
++  let rec reflect0 : type r. _ -> (_ -> r) -> (_ -> _ -> (_ -> r) -> r thunk) -> r thunk =
+     fun m nil cons ->
+       match m.r with
+-      | Nil e -> nil e
+-      | Cons ((x, s), l) -> cons x s (fun e -> reflect0 (l e) nil cons)
++      | Nil e -> Fin (nil e)
++      | Cons ((x, s), l) -> cons x s (fun e -> trampoline @@ reflect0 (l e) nil cons)
  
-   (** State related *)
- 
-@@ -250,30 +260,30 @@ struct
-     { iolist = fun s0 nil cons ->
-       let next = function
-       | Nil e -> nil e
--      | Cons ((x, s), {r=l}) -> cons x s (fun e -> (reflect (l e)).iolist s0 nil cons)
-+      | Cons ((x, s), {r=l}) -> trampoline @@ cons x s (fun e -> trampoline @@ (reflect (l e)).iolist s0 nil cons)
-       in
--      NonLogical.(m >>= next)
-+      Fin NonLogical.(m >>= next)
-     }
+   let reflect (m : ('a * 'o, 'e) reified) =
+     { iolist = fun s0 nil cons -> reflect0 m nil cons }
  
    let split m : (_ list_view, _, _, _) t =
-     let rnil e = NonLogical.return (Nil e) in
--    let rcons p s l = NonLogical.return (Cons ((p, s), {r=l})) in
-+    let rcons p s l = Fin (NonLogical.return (Cons ((p, s), {r=l}))) in
+     let rnil e = Nil e in
+-    let rcons p s l = Cons ((p, s), (fun e -> {r=l e})) in
++    let rcons p s l = Fin (Cons ((p, s), (fun e -> {r=l e}))) in
      { iolist = fun s nil cons ->
-       let open NonLogical in
--      m.iolist s rnil rcons >>= begin function
--      | Nil e -> cons (Nil e) s nil
-+      Fin ((trampoline @@ m.iolist s rnil rcons) >>= begin function
-+      | Nil e -> trampoline @@ cons (Nil e) s nil
-       | Cons ((x, s), {r=l}) ->
+-      begin match m.iolist s rnil rcons with
++      begin match trampoline @@ m.iolist s rnil rcons with
+       | Nil e -> cons (Nil e) s nil
+       | Cons ((x, s), l) ->
          let l e = reflect (l e) in
--        cons (Cons (x, l)) s nil
--      end }
-+        trampoline @@ cons (Cons (x, l)) s nil
-+      end) }
- 
-   let run m s =
-     let rnil e = NonLogical.return (Nil e) in
+@@ -285,9 +293,9 @@ struct
+     let rnil e = {r=Nil e} in
      let rcons x s l =
        let p = (x, s) in
--      NonLogical.return (Cons (p, {r=l}))
-+      Fin (NonLogical.return (Cons (p, {r=l})))
+-      {r=Cons (p, l)}
++      Fin {r=Cons (p, l)}
      in
 -    m.iolist s rnil rcons
 +    trampoline @@ m.iolist s rnil rcons
  
-   let repr x = x
+   let repr x = x.r
  end
-@@ -354,7 +364,7 @@ struct
-       writer) and efficiency. *)
- 
-   let get =
--    { iolist = fun s nil cons -> cons s.sstate s nil }
-+    { iolist = fun s nil cons -> TailCall (fun () -> cons s.sstate s nil) }
- 
-   let set (sstate : P.s) =
-     { iolist = fun s nil cons -> cons () { s with sstate } nil }
-@@ -383,8 +393,8 @@ struct
-     let rnil e = NonLogical.return (Nil e) in
+@@ -396,8 +404,8 @@ struct
+     let rnil e = {r=Nil e} in
      let rcons x s l =
        let p = (x, s.sstate, s.wstate, s.ustate) in
--      NonLogical.return (Cons (p, {r=l}))
-+      Fin (NonLogical.return (Cons (p, {r=l})))
+-      {r=Cons (p, l)}
++      Fin {r=Cons (p, l)}
      in
 -    m.iolist s rnil rcons
 +    trampoline @@ m.iolist s rnil rcons
