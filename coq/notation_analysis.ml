@@ -1617,26 +1617,29 @@ let intern_sort_name ~local_univs = function
 let intern_quality ~local_univs = function
   | CQAnon loc -> GLocalQVar (CAst.make ?loc Anonymous)
   | CRawQuality (QVar q) -> GRawQVar q
-  | CRawQuality _ -> assert false (* intern on raw quality only used for funind hacks *)
+  | CRawQuality _ ->
+    assert false (* intern on raw quality only used for funind hacks *)
   | CQConstant q -> GQuality (QConstant q)
-  | CQVar qid ->
+  | CQVar qid -> (
     let is_id = qualid_is_ident qid in
-    let local = if not is_id then None
+    let local =
+      if not is_id then None
       else Id.Map.find_opt (qualid_basename qid) (fst local_univs.bound)
     in
     match local with
     | Some u -> GQuality (QVar u)
-    | None ->
+    | None -> (
       try GQuality (Nametab.Quality.locate qid)
       with Not_found ->
-        if is_id && local_univs.unb_univs
-        then GLocalQVar (CAst.make ?loc:qid.loc (Name (qualid_basename qid)))
+        if is_id && local_univs.unb_univs then
+          GLocalQVar (CAst.make ?loc:qid.loc (Name (qualid_basename qid)))
         else
-          CErrors.user_err ?loc:qid.loc Pp.(str "Undeclared quality " ++ pr_qualid qid ++ str".")
+          CErrors.user_err ?loc:qid.loc
+            Pp.(str "Undeclared quality " ++ pr_qualid qid ++ str ".")))
 
-let intern_sort ~local_univs (q,l) =
-  Option.map (intern_quality ~local_univs) q,
-  map_glob_sort_gen (List.map (on_fst (intern_sort_name ~local_univs))) l
+let intern_sort ~local_univs (q, l) =
+  ( Option.map (intern_quality ~local_univs) q
+  , map_glob_sort_gen (List.map (on_fst (intern_sort_name ~local_univs))) l )
 
 let intern_instance ~local_univs = function
   | None -> None
@@ -3146,9 +3149,9 @@ let list_notations_and_internalize globalenv env pattern_mode
         (* Propagating enough information for mutual interning with
            tac-in-term *)
         let intern_sign =
-          { Genintern.intern_ids = env.ids;
-            Genintern.intern_univs = env.local_univs.bound;
-            Genintern.notation_variable_status = ntnvars
+          { Genintern.intern_ids = env.ids
+          ; Genintern.intern_univs = env.local_univs.bound
+          ; Genintern.notation_variable_status = ntnvars
           }
         in
         let ist =
