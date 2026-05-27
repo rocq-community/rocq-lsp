@@ -66,11 +66,11 @@ let map ~f ~g { goals; stack; bullet; shelf; given_up } =
 type ('goals, 'pp) reified = ('goals Reified_goal.t, 'pp) t
 
 (** XXX: Do we need to perform evar normalization? *)
-module CDC = Context.Compacted.Declaration
+module CDC = Ppconstr.CompactedDecl
 
-type cdcl = EConstr.compacted_declaration
+type cdcl = CDC.t
 
-let binder_name n = Context.binder_name n |> Names.Id.to_string
+let binder_name (_,n) = Context.binder_name n |> Names.Id.to_string
 
 let to_tuple ppx : cdcl -> 'pc Reified_goal.hyp =
   let open CDC in
@@ -108,10 +108,11 @@ let process_goal_gen ~ppx ~compact sigma g : 'a Reified_goal.t =
   let (EvarInfo evi) = Evd.find sigma g in
   let env = Evd.evar_filtered_env env evi in
   (* why is compaction neccesary... ? [eg for better display] *)
+  (* TODO secvar status in non compact mode *)
   let ctx =
     if compact then
-      Termops.compact_named_context sigma (EConstr.named_context env)
-    else List.map CDC.of_named_decl (EConstr.named_context env)
+      Ppconstr.compact_named_context sigma (Environ.named_context_val env)
+    else List.map (CDC.of_named_decl None) (EConstr.named_context env)
   in
   let ppx = ppx env sigma in
   let hyps = List.map (get_hyp ppx sigma) ctx |> List.rev in

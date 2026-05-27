@@ -59,20 +59,3 @@ module Named = struct
     [@@deriving sexp,yojson,hash,compare]
 
 end
-
-module Compacted = struct
-
-  module Declaration = struct
-
-  type ('constr, 'types, 'r) pt =
-    [%import: ('constr, 'types, 'r) Context.Compacted.Declaration.pt]
-    [@@deriving sexp]
-
-  end
-
-  type ('constr, 'types, 'r) pt =
-    [%import: ('constr, 'types, 'r) Context.Compacted.pt]
-    [@@deriving sexp]
-
-end
-
