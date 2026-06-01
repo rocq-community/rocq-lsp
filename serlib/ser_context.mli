@@ -16,8 +16,6 @@
 (* Written by: Emilio J. Gallego Arias and others                       *)
 (************************************************************************)
 
-open Sexplib
-
 type ('a,'r) pbinder_annot = ('a,'r) Context.pbinder_annot
   [@@deriving sexp,yojson,hash,compare]
 
@@ -45,21 +43,5 @@ module Named : sig
 
   type ('c, 't, 'r) pt = ('c, 't, 'r) Context.Named.pt
    [@@deriving sexp,yojson,hash,compare]
-
-end
-
-module Compacted : sig
-
-  module Declaration : sig
-
-    type ('c, 't, 'r) pt = ('c, 't, 'r) Context.Compacted.Declaration.pt
-    val pt_of_sexp : (Sexp.t -> 'c) -> (Sexp.t -> 't) -> (Sexp.t -> 'r) -> Sexp.t -> ('c, 't, 'r) pt
-    val sexp_of_pt : ('c -> Sexp.t) -> ('t -> Sexp.t) -> ('r -> Sexp.t) -> ('c, 't, 'r) pt -> Sexp.t
-
-  end
-
-  type ('c, 't, 'r) pt = ('c, 't, 'r) Context.Compacted.pt
-  val pt_of_sexp : (Sexp.t -> 'c) -> (Sexp.t -> 't) -> (Sexp.t -> 'r) -> Sexp.t -> ('c, 't, 'r) pt
-  val sexp_of_pt : ('c -> Sexp.t) -> ('t -> Sexp.t) -> ('r -> Sexp.t) -> ('c, 't, 'r) pt -> Sexp.t
 
 end
