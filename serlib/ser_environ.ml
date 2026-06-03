@@ -39,14 +39,6 @@ module Vmlibrary      = Ser_vmlibrary
  *   [%import: Environ.stratification]
  *   [@@deriving sexp_of] *)
 
-type rel_context_val =
-  [%import: Environ.rel_context_val]
-  [@@deriving sexp_of]
-
-type named_context_val =
-  [%import: Environ.named_context_val]
-  [@@deriving sexp_of]
-
 type link_info =
   [%import: Environ.link_info]
   [@@deriving sexp,yojson,hash,compare]
