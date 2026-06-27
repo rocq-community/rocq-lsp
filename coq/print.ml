@@ -20,7 +20,7 @@ let pr_goals ~token ~proof =
     State.Proof.to_coq proof |> Vernacstate.LemmaStack.get_top
     |> Declare.Proof.get
   in
-  let f = Printer.pr_open_subgoals in
+  let f = Vernacgoal.pr_open_subgoals in
   Protect.eval ~token ~f proof
 
 let pr_vernac ~token ~st v =
