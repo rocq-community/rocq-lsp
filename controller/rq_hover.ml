@@ -32,8 +32,7 @@ let print_params env sigma params =
 let info_of_ind env ((sp, i) : Names.Ind.t) =
   let mib = Environ.lookup_mind sp env in
   let auctx =
-    Printer.fill_names
-      (Declareops.inductive_polymorphic_context mib)
+    Printer.fill_names (Declareops.inductive_polymorphic_context mib)
   in
   let sigma = Evd.from_auctx env auctx in
   let u =
@@ -76,10 +75,7 @@ let type_of_constant cb = cb.Declarations.const_type
 
 let info_of_const env cr =
   let cdef = Environ.lookup_constant cr env in
-  let bl =
-    Printer.fill_names
-      (Environ.constant_context env cr)
-  in
+  let bl = Printer.fill_names (Environ.constant_context env cr) in
   let sigma = Evd.from_auctx env bl in
   (* This prints the definition *)
   (* let cb = Environ.lookup_constant cr env in *)
