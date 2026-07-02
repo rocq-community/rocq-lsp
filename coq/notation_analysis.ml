@@ -1504,7 +1504,7 @@ let save_and_intern_notation save intern env ntnvars loc ntn fullargs =
   (* Recover interpretation { } *)
   let (ids, c), df = interp_notation ?loc ntn (env.tmp_scope, env.scopes) in
   let posl = ntn_loc ?loc fullargs ntn in
-  let ((path, secpath), _), sc = df in
+  let ((path, secpath, _), _), sc = df in
   save
     (List.map Loc.make_loc posl)
     (Names.DirPath.to_string path)
