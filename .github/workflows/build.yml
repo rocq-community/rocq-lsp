@@ -67,6 +67,9 @@ jobs:
           ocaml-compiler: ${{ matrix.ocaml }}
           dune-cache: true
 
+      - name: Pin dune (vendored repos still use coq lang)
+        run: opam pin add dune 3.23.1
+
       - name: 🐫🐪🐫 Get dependencies
         run: opam exec -- make opam-deps
 
