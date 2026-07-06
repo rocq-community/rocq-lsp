@@ -56,7 +56,7 @@ module Constant : SerType.SJHC with type t = Constant.t
 
 module Cset_env : Ser_cSet.ExtS with type elt = Constant.t and type t = Cset_env.t
 
-module Cmap : Ser_cMap.ExtS with type key = Constant.t and type 'a t = 'a Cmap.t
+module Cmap : Ser_cMap.ExtS with type key = Constant.t and type 'a t = 'a Cmap.t [@@warning "-3"]
 module Cmap_env : Ser_cMap.ExtS with type key = Constant.t and type 'a t = 'a Cmap_env.t
 
 module MutInd : SerType.SJHC with type t = MutInd.t
