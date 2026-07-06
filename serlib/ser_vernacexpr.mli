@@ -64,6 +64,10 @@ type glob_search_where =
   [%import: Vernacexpr.glob_search_where]
   [@@deriving sexp,yojson,hash,compare]
 
+type discharge =
+  [%import: Vernacexpr.discharge]
+  [@@deriving sexp,yojson,hash,compare]
+
 type search_item =
   [%import: Vernacexpr.search_item]
   [@@deriving sexp,yojson,hash,compare]
@@ -222,10 +226,6 @@ type register_kind =
 
 type module_ast_inl =
   [%import: Vernacexpr.module_ast_inl]
-  [@@deriving sexp,yojson,hash,compare]
-
-type discharge =
-  [%import: Vernacexpr.discharge]
   [@@deriving sexp,yojson,hash,compare]
 
 type equality_scheme_type =

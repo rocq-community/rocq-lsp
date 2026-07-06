@@ -93,6 +93,10 @@ type glob_search_where =
   [%import: Vernacexpr.glob_search_where]
   [@@deriving sexp,yojson,hash,compare]
 
+type discharge =
+  [%import: Vernacexpr.discharge]
+  [@@deriving sexp,yojson,hash,compare]
+
 type search_item =
   [%import: Vernacexpr.search_item]
   [@@deriving sexp,yojson,hash,compare]
@@ -311,10 +315,6 @@ type module_binder =
 
 type typeclass_constraint =
   [%import: Vernacexpr.typeclass_constraint]
-  [@@deriving sexp,yojson,hash,compare]
-
-type discharge =
-  [%import: Vernacexpr.discharge]
   [@@deriving sexp,yojson,hash,compare]
 
 type arguments_modifier =
