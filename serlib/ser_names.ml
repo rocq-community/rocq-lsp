@@ -178,7 +178,7 @@ end
 
 module Cset_env = Ser_cSet.Make(Cset_env)(Constant)
 
-module Cmap = Ser_cMap.Make(Cmap)(Constant)
+module Cmap = Ser_cMap.Make(Cmap)(Constant) [@@warning "-3"]
 module Cmap_env = Ser_cMap.Make(Cmap_env)(Constant)
 
 module MutInd = struct
