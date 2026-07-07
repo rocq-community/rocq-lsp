@@ -213,7 +213,7 @@ and layout t =
       BoxModel.App { fn = layout fn; impl; argl }
     | CProj _ -> xxx "proj"
     (* | CRecord of (qualid * constr_expr) list *)
-    | CRecord fl -> xxx "record"
+    | CRecord _ -> xxx "record"
     (* representation of the "let" and "match" constructs *)
     (* | CCases of Constr.case_style   (\* determines whether this value represents "let" or "match" construct *\)
      *           * constr_expr option  (\* return-clause *\)
