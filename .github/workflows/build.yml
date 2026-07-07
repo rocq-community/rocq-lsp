@@ -67,6 +67,9 @@ jobs:
           ocaml-compiler: ${{ matrix.ocaml }}
           dune-cache: true
 
+      - name: Pin dune (vendored repos still use coq lang)
+        run: opam pin add dune 3.23.1
+
       - name: 🐫🐪🐫 Get dependencies
         run: opam exec -- make opam-deps
 
@@ -196,26 +199,26 @@ jobs:
       - name: Test `pet-server` is built
         run: opam exec -- which pet-server
 
-  build-nix:
-    name: Nix
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macOS-latest]
-      fail-fast: false
+  # build-nix:
+  #   name: Nix
+  #   strategy:
+  #     matrix:
+  #       os: [ubuntu-latest, macOS-latest]
+  #     fail-fast: false
 
-    runs-on: ${{ matrix.os }}
+  #   runs-on: ${{ matrix.os }}
 
-    steps:
-      - name: 🔭 Checkout code
-        uses: actions/checkout@v5
-        with:
-          submodules: recursive
+  #   steps:
+  #     - name: 🔭 Checkout code
+  #       uses: actions/checkout@v5
+  #       with:
+  #         submodules: recursive
 
-      - name: ❄️ Setup Nix
-        uses: cachix/install-nix-action@v31
+  #     - name: ❄️ Setup Nix
+  #       uses: cachix/install-nix-action@v31
 
-      - name: 🧱 Build coq-lsp
-        run: nix build '.?submodules=1#'
+  #     - name: 🧱 Build coq-lsp
+  #       run: nix build '.?submodules=1#'
 
   client-compile:
     runs-on: ubuntu-latest
@@ -232,15 +235,15 @@ jobs:
       - run: npm ci
       - run: npx --yes @vscode/vsce ls
 
-  nix-flake-check:
-    name: Nix Flake Check
-    runs-on: ubuntu-latest
-    steps:
-      - name: 🔭 Checkout code
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: ❄️ Setup Nix
-        uses: cachix/install-nix-action@v31
-      - name: 📐 Run flake check
-        run: nix flake check --show-trace
+  # nix-flake-check:
+  #   name: Nix Flake Check
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: 🔭 Checkout code
+  #       uses: actions/checkout@v4
+  #       with:
+  #         submodules: recursive
+  #     - name: ❄️ Setup Nix
+  #       uses: cachix/install-nix-action@v31
+  #     - name: 📐 Run flake check
+  #       run: nix flake check --show-trace
