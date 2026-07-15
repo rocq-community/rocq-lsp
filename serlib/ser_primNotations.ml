@@ -17,6 +17,7 @@
 (************************************************************************)
 
 module NumTok = Ser_numTok
+module Names = Ser_names
 module Constrexpr = Ser_constrexpr
 
 type numnot_option =
