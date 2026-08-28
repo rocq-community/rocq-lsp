@@ -40,6 +40,22 @@ module State = struct
 
   let to_yojson st = register st |> S.to_int |> _t_to_yojson
 
+  (* [free ids] gives up the client's claim on [ids]. The states stay cached
+     until the store's bound ages them out, so a freed handle that is soon
+     re-derived is still a cache hit. Unknown or already freed ids are ignored,
+     repeating a free is harmless. [freed] counts the claims actually given up,
+     not the ids named: an id a document owns but no handle named was never the
+     client's to free, and counting it would make the number useless for
+     spotting a leak. *)
+  let free ids =
+    let release freed raw =
+      match S.of_int raw with
+      | None -> freed
+      | Some id -> if S.release id S.Client then freed + 1 else freed
+    in
+    let freed = List.fold_left release 0 ids in
+    let { S.live; _ } = S.stats () in
+    (freed, live)
 end
 
 module Inspect = struct

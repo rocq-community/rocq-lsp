@@ -136,6 +136,18 @@ module S (C : Chans) = struct
     let module M = Wrap (StateProofHash) (C) in
     M.call
 
+  let state_free =
+    let module M = Wrap (StateFree) (C) in
+    M.call
+
+  let state_stats =
+    let module M = Wrap (StateStats) (C) in
+    M.call
+
+  let cache_trim =
+    let module M = Wrap (CacheTrim) (C) in
+    M.call
+
   let list_notations_in_statement =
     let module M = Wrap (ListNotations) (C) in
     M.call

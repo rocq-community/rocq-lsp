@@ -91,6 +91,12 @@ let handle_request ~(do_handle : 'a handle) ~unhandled ~token ~method_ ~params =
     do_handle ~token (do_request (module StateProofEqual) ~params)
   | s when String.equal StateProofHash.method_ s ->
     do_handle ~token (do_request (module StateProofHash) ~params)
+  | s when String.equal StateFree.method_ s ->
+    do_handle ~token (do_request (module StateFree) ~params)
+  | s when String.equal StateStats.method_ s ->
+    do_handle ~token (do_request (module StateStats) ~params)
+  | s when String.equal CacheTrim.method_ s ->
+    do_handle ~token (do_request (module CacheTrim) ~params)
   | s when String.equal ListNotations.method_ s ->
     do_handle ~token (do_request (module ListNotations) ~params)
   | s when String.equal PetAst.method_ s ->

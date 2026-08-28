@@ -404,6 +404,100 @@ module StateProofHash = struct
   end
 end
 
+(* Store statistics, shared by the routes below *)
+module StoreStats = struct
+  type t =
+    { live : int
+    ; roots : int
+    ; docs : int
+    ; clients : int
+    ; unowned : int
+    }
+  [@@deriving yojson]
+
+  let of_states { Fleche.States.live; roots; docs; clients; unowned } =
+    { live; roots; docs; clients; unowned }
+end
+
+(* Release the client's claim on some handles. Unknown or already-freed ids are
+   ignored, so a client may repeat a free without consequence. *)
+module StateFree = struct
+  let method_ = "petanque/state/free"
+
+  module Params = struct
+    (* Deliberately raw ints: a [State.t] here would fail to deserialise on an
+       id that was already freed, taking the whole batch with it. *)
+    type t = { st : int list } [@@deriving yojson]
+  end
+
+  module Response = struct
+    type t =
+      { freed : int
+      ; live : int
+      }
+    [@@deriving yojson]
+  end
+
+  module Handler = struct
+    module Params = Params
+    module Response = Response
+
+    let handler =
+      HType.Immediate
+        (fun ~token:_ { Params.st } ->
+          let freed, live = JAgent.State.free st in
+          Ok { Response.freed; live })
+  end
+end
+
+(* What the state store is holding, and for whom. *)
+module StateStats = struct
+  let method_ = "petanque/state/stats"
+
+  module Params = struct
+    type t = { gc : bool [@default false] } [@@deriving yojson]
+  end
+
+  module Response = StoreStats
+
+  module Handler = struct
+    module Params = Params
+    module Response = Response
+
+    let handler =
+      HType.Immediate
+        (fun ~token:_ { Params.gc } ->
+          let stats =
+            if gc then Fleche.States.gc () else Fleche.States.stats ()
+          in
+          Ok (StoreStats.of_states stats))
+  end
+end
+
+(* Drop every cache. Blunt: the next request re-checks from scratch. Documents
+   keep the states they are made of. *)
+module CacheTrim = struct
+  let method_ = "petanque/cache/trim"
+
+  module Params = struct
+    type t = { full_major : bool [@default false] } [@@deriving yojson]
+  end
+
+  module Response = StoreStats
+
+  module Handler = struct
+    module Params = Params
+    module Response = Response
+
+    let handler =
+      HType.Immediate
+        (fun ~token:_ { Params.full_major } ->
+          let stats = Fleche.Memo.clear_all () in
+          if full_major then Gc.full_major ();
+          Ok (StoreStats.of_states stats))
+  end
+end
+
 module ListNotations = struct
   let method_ = "petanque/list_notations_in_statement"
 
