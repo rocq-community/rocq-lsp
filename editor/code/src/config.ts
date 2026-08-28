@@ -30,6 +30,7 @@ export interface CoqLspServerConfig {
   check_only_on_request: boolean;
   send_perf_data: boolean;
   send_execinfo: boolean;
+  state_cache_size: number;
   completion: CompletionConfig;
 }
 
@@ -48,6 +49,7 @@ export namespace CoqLspServerConfig {
       admit_on_bad_qed: wsConfig.admit_on_bad_qed,
       debug: wsConfig.debug,
       max_errors: wsConfig.max_errors,
+      state_cache_size: wsConfig.state_cache_size,
       pp_type: wsConfig.pp_type,
       show_stats_on_hover: wsConfig.show_stats_on_hover,
       show_loc_info_on_hover: wsConfig.show_loc_info_on_hover,

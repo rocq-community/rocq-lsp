@@ -94,6 +94,12 @@ type t =
   ; unicode_completion : Completion.Unicode.Mode.t option [@default None]
         (** deprecated, use [completion.unicode.enabled] *)
   ; max_errors : int [@default 150]
+  ; state_cache_size : int [@default 10_000]
+        (** How many Rocq states no one holds a claim on the state store may
+            keep as a cache; past this the least recently used are dropped.
+            Client handles that were not freed, the most recently used open
+            documents, and root states are claims, so they are never dropped and
+            do not count. *)
   ; pp_type : int [@default 0]
         (** Pretty-printing type in Info Panel Request, 0 = string; 1 = Pp.t; 2
             = Coq Layout Engine *)
@@ -143,6 +149,7 @@ let default =
   ; debug = false
   ; unicode_completion = None
   ; max_errors = 150
+  ; state_cache_size = 10_000
   ; pp_type = 0
   ; show_stats_on_hover = false
   ; show_loc_info_on_hover = false
