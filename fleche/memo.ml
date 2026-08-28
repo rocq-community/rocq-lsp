@@ -144,12 +144,10 @@ end
 module type EvalType = sig
   include Hashtbl.HashedType
 
-  type output
-
   val name : string
 
   val eval :
-    token:Coq.Limits.Token.t -> t -> (output, Coq.Loc_t.t) Coq.Protect.E.t
+    token:Coq.Limits.Token.t -> t -> (Coq.State.t, Coq.Loc_t.t) Coq.Protect.E.t
 
   val input_info : t -> string
 end
@@ -185,77 +183,34 @@ module type S = sig
   val clear : unit -> unit
 end
 
-module SEval (E : EvalType) :
-  S with type input = E.t and type output = E.output = struct
+(* The caches differ only in what they record beside a result, and in whether
+   they are traced and counted in the global hit rate. *)
+module type Payload = sig
+  type input
+  type t
+
+  val make : input -> t
+
+  (** Adapt a cached result to the input it is being reused for *)
+  val repair :
+       t (* of the input at hand *)
+    -> t (* of the input the result was produced for *)
+    -> (Coq.State.t, Coq.Loc_t.t) Coq.Protect.E.t
+    -> (Coq.State.t, Coq.Loc_t.t) Coq.Protect.E.t
+
+  val reported : bool
+end
+
+module Eval (E : EvalType) (P : Payload with type input = E.t) :
+  S with type input = E.t and type output = Coq.State.t = struct
   type input = E.t
-  type output = E.output
+  type output = Coq.State.t
 
   module HC = Hashtbl.Make (E)
 
   type entry =
-    { res : (E.output, Coq.Loc_t.t) Coq.Protect.E.t
-    ; stats : CS.t
-    ; mutable hits : int  (** how often this entry was reused *)
-    }
-
-  let cache : entry HC.t = HC.create 1000
-
-  (* This is very expensive *)
-  let size () = Obj.reachable_words (Obj.magic cache)
-  let input_info i = E.input_info i
-  let stats () = HC.stats cache
-  let clear () = HC.clear cache
-
-  let all_freqs () =
-    HC.fold (fun _ e acc -> e.hits :: acc) cache []
-    |> List.sort (fun x y -> -Int.compare x y)
-
-  (* Interrupted executions are not cached *)
-  let add i entry =
-    match entry.res.Coq.Protect.E.r with
-    | Coq.Protect.R.Interrupted -> ()
-    | _ -> HC.replace cache i entry
-
-  let in_cache i =
-    let kind = CS.Kind.Hashing in
-    CS.record ~kind ~f:(HC.find_opt cache) i
-
-  let evalS ~token i =
-    match in_cache i with
-    | Some entry, { time = time_hash; memory = _ } ->
-      entry.hits <- entry.hits + 1;
-      (entry.res, Stats.make ~stats:entry.stats ~cache_hit:true ~time_hash ())
-    | None, { time = time_hash; memory = _ } ->
-      let kind = CS.Kind.Exec in
-      let f i = E.eval ~token i in
-      let res, stats = CS.record ~kind ~f i in
-      let () = add i { res; stats; hits = 0 } in
-      (res, Stats.make ~stats ~cache_hit:false ~time_hash ())
-
-  let evalS ~token i =
-    let name = "Memo." ^ E.name in
-    NewProfile.profile name (fun () -> evalS ~token i) ()
-
-  let eval ~token i = evalS ~token i |> fst
-end
-
-module type LocEvalType = sig
-  include EvalType
-
-  val loc_of_input : t -> Coq.Loc_t.t
-end
-
-module CEval (E : LocEvalType) = struct
-  type input = E.t
-  type output = E.output
-
-  module HC = Hashtbl.Make (E)
-
-  type entry =
-    { loc : Coq.Loc_t.t
-          (** where the result was produced, so it can be shifted to where it is
-              reused *)
-    ; res : (E.output, Coq.Loc_t.t) Coq.Protect.E.t
+    { payload : P.t
+    ; res : (Coq.State.t, Coq.Loc_t.t) Coq.Protect.E.t
     ; stats : CS.t
     ; mutable hits : int  (** how often this entry was reused *)
     }
@@ -282,24 +237,28 @@ module CEval (E : LocEvalType) = struct
     let kind = CS.Kind.Hashing in
     CS.record ~kind ~f:(HC.find_opt cache) i
 
+  let miss ~token ~time_hash ~payload i =
+    if P.reported then (
+      if Debug.cache then Io.Log.trace "memo" "cache miss";
+      GlobalCacheStats.miss ());
+    let kind = CS.Kind.Exec in
+    let f i = E.eval ~token i in
+    let res, stats = CS.record ~kind ~f i in
+    let () = add i { payload; res; stats; hits = 0 } in
+    (res, Stats.make ~stats ~cache_hit:false ~time_hash ())
+
   let evalS ~token i =
-    let stm_loc = E.loc_of_input i in
+    let payload = P.make i in
     match in_cache i with
     | Some entry, { time = time_hash; memory = _ } ->
-      if Debug.cache then Io.Log.trace "memo" "cache hit";
-      GlobalCacheStats.hit ();
+      if P.reported then (
+        if Debug.cache then Io.Log.trace "memo" "cache hit";
+        GlobalCacheStats.hit ());
       entry.hits <- entry.hits + 1;
-      let res =
-        Loc_utils.adjust_offset ~stm_loc ~cached_loc:entry.loc entry.res
-      in
+      let res = P.repair payload entry.payload entry.res in
       (res, Stats.make ~stats:entry.stats ~cache_hit:true ~time_hash ())
     | None, { time = time_hash; memory = _ } ->
-      if Debug.cache then Io.Log.trace "memo" "cache miss";
-      GlobalCacheStats.miss ();
-      let kind = CS.Kind.Exec in
-      let res, stats = CS.record ~kind ~f:(E.eval ~token) i in
-      let () = add i { loc = stm_loc; res; stats; hits = 0 } in
-      (res, Stats.make ~stats ~cache_hit:false ~time_hash ())
+      miss ~token ~time_hash ~payload i
 
   let evalS ~token i =
     let name = "Memo." ^ E.name in
@@ -307,6 +266,44 @@ module CEval (E : LocEvalType) = struct
 
   let eval ~token i = evalS ~token i |> fst
 end
+
+(* Caches with nothing to record beside the result *)
+module SEval (E : EvalType) :
+  S with type input = E.t and type output = Coq.State.t =
+  Eval
+    (E)
+    (struct
+      type input = E.t
+      type t = unit
+
+      let make _ = ()
+      let repair () () res = res
+      let reported = false
+    end)
+
+module type LocEvalType = sig
+  include EvalType
+
+  val loc_of_input : t -> Coq.Loc_t.t
+end
+
+(* Caches that record the location a result was produced at, so that it can be
+   shifted to the one it is reused at *)
+module CEval (E : LocEvalType) :
+  S with type input = E.t and type output = Coq.State.t =
+  Eval
+    (E)
+    (struct
+      type input = E.t
+      type t = Coq.Loc_t.t
+
+      let make = E.loc_of_input
+
+      let repair stm_loc cached_loc res =
+        Loc_utils.adjust_offset ~stm_loc ~cached_loc res
+
+      let reported = true
+    end)
 
 module VernacEval = struct
   let name = "Interp"
@@ -324,8 +321,6 @@ module VernacEval = struct
 
   let input_info (st, v) =
     Format.asprintf "stm: %d | st %d" (Coq.Ast.hash v) (Hashtbl.hash st)
-
-  type output = Coq.State.t
 
   let eval ~token (st, stm) = Coq.Interp.interp ~token ~intern ~st stm
 end
@@ -355,8 +350,6 @@ module RequireEval = struct
 
   let loc_of_input (_, _, stm) = Option.get stm.Coq.Ast.Require.loc
 
-  type output = Coq.State.t
-
   let eval ~token (st, files, stm) =
     Coq.Interp.Require.interp ~token ~intern ~st files stm
 end
@@ -367,9 +360,6 @@ module Admit = SEval (struct
   include Coq.State
 
   let name = "Admit"
-
-  type output = Coq.State.t
-
   let input_info st = Format.asprintf "st %d" (Hashtbl.hash st)
   let eval ~token st = Coq.State.admit ~token ~st
 end)
@@ -394,8 +384,6 @@ module InitEval = struct
       , Coq.Workspace.hash w
       , Coq.Files.hash f
       , Lang.LUri.File.hash uri )
-
-  type output = Coq.State.t
 
   let eval ~token (root_state, workspace, _files, uri) =
     Coq.Init.doc_init ~token ~intern ~root_state ~workspace ~uri
