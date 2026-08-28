@@ -291,11 +291,16 @@ module Env = struct
     ; files : Coq.Files.t
     }
 
-  let make ~init ~workspace ~files = { init; workspace; files }
+  let make ~init ~workspace ~files =
+    (* Every chain is rooted here, as is the key of the [Memo.Init] entry that
+       builds a document; it must outlive any eviction. *)
+    States.retain (States.register init) States.Root;
+    { init; workspace; files }
 
   let inject_requires ~extra_requires { init; workspace; files } =
     let workspace = Coq.Workspace.inject_requires ~extra_requires workspace in
-    { init; workspace; files }
+    (* Through [make], so that every construction path roots [init] *)
+    make ~init ~workspace ~files
 end
 
 (** A Flèche document is basically a [node list], which is a crude form of a
