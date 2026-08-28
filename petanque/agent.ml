@@ -13,6 +13,8 @@ module SM = Lang.Compat.String.Map
 module State = struct
   type t = Coq.State.t
 
+  let to_coq x = x
+  let of_coq x = x
   let hash = Coq.State.hash
   let name = "state"
 
@@ -450,4 +452,4 @@ let proof_info_at_pos ~token ~doc ~point () =
   | None -> Error (Error.make_request No_node_at_point)
 
 (* See PROTOCOL.md for details on versioning *)
-let version = 3
+let version = 4

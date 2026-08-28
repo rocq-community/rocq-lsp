@@ -11,8 +11,36 @@
 (* Serialization for agent types *)
 module Lsp = Fleche_lsp
 
-(* Implement State.t and Env.t serialization methods *)
-module State = Obj_map.Make (Petanque.Agent.State)
+(* A handle is an id in the state store. Serialising a state is what hands it to
+   a client, so that is where the client's claim on it starts; the claim ends
+   when the client frees the handle, or when the process does. *)
+module State = struct
+  module S = Fleche.States
+
+  type t = Petanque.Agent.State.t
+  type _t = int [@@deriving yojson]
+
+  let register st =
+    let id = S.register (Petanque.Agent.State.to_coq st) in
+    S.retain id S.Client;
+    id
+
+  let not_found raw =
+    Error
+      (Format.asprintf "key %d for object %s not found" raw
+         Petanque.Agent.State.name)
+
+  let of_yojson json =
+    match _t_of_yojson json with
+    | Error _ as err -> err
+    | Ok raw -> (
+      match Option.bind (S.of_int raw) S.get with
+      | None -> not_found raw
+      | Some st -> Ok (Petanque.Agent.State.of_coq st))
+
+  let to_yojson st = register st |> S.to_int |> _t_to_yojson
+
+end
 
 module Inspect = struct
   type t = [%import: Petanque.Agent.State.Inspect.t] [@@deriving yojson]
