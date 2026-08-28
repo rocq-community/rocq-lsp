@@ -39,7 +39,9 @@ module Handle = struct
         Lang.LUri.File.pp uri);
     Hashtbl.add doc_table uri { doc; cp_requests = IS.empty; pt_requests = [] }
 
-  let close ~uri = Hashtbl.remove doc_table uri
+  let close ~uri =
+    Doc_own.remove uri;
+    Hashtbl.remove doc_table uri
 
   let with_doc ~kind ~f ~uri ~default =
     match Hashtbl.find_opt doc_table uri with

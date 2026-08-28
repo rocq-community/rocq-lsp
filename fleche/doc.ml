@@ -1198,8 +1198,23 @@ let check ~io ~token ~target ~doc () =
     Util.print_stats ();
     doc
 
+(* The states a document is made of are claimed in the store on its behalf:
+   pet drops the document after every request, and the LSP would otherwise
+   lose them to the store's cache bound. The claim is refreshed on every
+   check; the physical diff inside [Doc_own.set] makes that free when the
+   check moved nothing. *)
+let own_states doc =
+  let states = doc.root :: List.map Node.state doc.nodes in
+  Doc_own.set doc.uri states
+
 let check ~io ~token ~target ~doc () =
-  NewProfile.profile "Doc.check" (fun () -> check ~io ~token ~target ~doc ()) ()
+  let doc =
+    NewProfile.profile "Doc.check"
+      (fun () -> check ~io ~token ~target ~doc ())
+      ()
+  in
+  own_states doc;
+  doc
 
 let save ~token ~doc =
   match doc.completed with
