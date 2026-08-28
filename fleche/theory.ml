@@ -154,6 +154,10 @@ module Handle = struct
     Hashtbl.filter_map_inplace update_doc_env doc_table;
     (* We forget the old .vo files in the .vo cache too *)
     Memo.Intern.clear ();
+    (* The bump above retires the [Require] entries of every document, but not
+       those of a caller that has no document to bump: pétanque's [run] keys on
+       the generation it started with, so a stale entry would survive there. *)
+    Memo.Require.clear ();
     !invalid_req
 end
 
