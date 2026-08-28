@@ -97,73 +97,6 @@ module GlobalCacheStats = struct
       Format.asprintf "cache hit rate: %3.2f" hit_rate
 end
 
-module MemoTable = struct
-  module type S = sig
-    (* Stronger than Hashtbl.S due to the more advanced cache *)
-    type key
-    type !'a t
-
-    val create : int -> 'a t
-    val find_opt : 'a t -> key -> 'a option
-
-    (* Clears the cache *)
-    val clear : 'a t -> unit
-
-    val add_execution :
-         (('a, 'l) Coq.Protect.E.t * 'b) t
-      -> key
-      -> ('a, 'l) Coq.Protect.E.t * 'b
-      -> unit
-
-    val add_execution_loc :
-         ('v * ('a, 'l) Coq.Protect.E.t * 'b) t
-      -> key
-      -> 'v * ('a, 'l) Coq.Protect.E.t * 'b
-      -> unit
-
-    (** sorted *)
-    val all_freqs : unit -> int list
-
-    val stats : 'a t -> Hashtbl.statistics
-  end
-
-  module Make (H : Hashtbl.HashedType) : S with type key = H.t = struct
-    include Hashtbl.Make (H)
-
-    (* Number of times a value has been found *)
-    let count = create 1000
-
-    let clear t =
-      clear count;
-      clear t
-
-    let add t k v =
-      replace count k 0;
-      add t k v
-
-    let find_opt t k =
-      match find_opt t k with
-      | None -> None
-      | Some res ->
-        replace count k (find count k + 1);
-        Some res
-
-    let all_freqs () =
-      to_seq_values count |> List.of_seq
-      |> List.sort (fun x y -> -Int.compare x y)
-
-    let add_execution t k (({ Coq.Protect.E.r; _ }, _) as v) =
-      match r with
-      | Coq.Protect.R.Interrupted -> ()
-      | _ -> add t k v
-
-    let add_execution_loc t k ((_, { Coq.Protect.E.r; _ }, _) as v) =
-      match r with
-      | Coq.Protect.R.Interrupted -> ()
-      | _ -> add t k v
-  end
-end
-
 (* XXX: Move elsewhere *)
 module Loc_utils : sig
   val adjust_offset :
@@ -257,14 +190,31 @@ module SEval (E : EvalType) :
   type input = E.t
   type output = E.output
 
-  module HC = MemoTable.Make (E)
+  module HC = Hashtbl.Make (E)
 
-  let cache = HC.create 1000
+  type entry =
+    { res : (E.output, Coq.Loc_t.t) Coq.Protect.E.t
+    ; stats : CS.t
+    ; mutable hits : int  (** how often this entry was reused *)
+    }
+
+  let cache : entry HC.t = HC.create 1000
+
+  (* This is very expensive *)
   let size () = Obj.reachable_words (Obj.magic cache)
   let input_info i = E.input_info i
-  let all_freqs = HC.all_freqs
   let stats () = HC.stats cache
   let clear () = HC.clear cache
+
+  let all_freqs () =
+    HC.fold (fun _ e acc -> e.hits :: acc) cache []
+    |> List.sort (fun x y -> -Int.compare x y)
+
+  (* Interrupted executions are not cached *)
+  let add i entry =
+    match entry.res.Coq.Protect.E.r with
+    | Coq.Protect.R.Interrupted -> ()
+    | _ -> HC.replace cache i entry
 
   let in_cache i =
     let kind = CS.Kind.Hashing in
@@ -272,13 +222,14 @@ module SEval (E : EvalType) :
 
   let evalS ~token i =
     match in_cache i with
-    | Some (cached_res, stats), { time = time_hash; memory = _ } ->
-      (cached_res, Stats.make ~stats ~cache_hit:true ~time_hash ())
+    | Some entry, { time = time_hash; memory = _ } ->
+      entry.hits <- entry.hits + 1;
+      (entry.res, Stats.make ~stats:entry.stats ~cache_hit:true ~time_hash ())
     | None, { time = time_hash; memory = _ } ->
       let kind = CS.Kind.Exec in
       let f i = E.eval ~token i in
       let res, stats = CS.record ~kind ~f i in
-      let () = HC.add_execution cache i (res, stats) in
+      let () = add i { res; stats; hits = 0 } in
       (res, Stats.make ~stats ~cache_hit:false ~time_hash ())
 
   let evalS ~token i =
@@ -298,23 +249,34 @@ module CEval (E : LocEvalType) = struct
   type input = E.t
   type output = E.output
 
-  module HC = MemoTable.Make (E)
+  module HC = Hashtbl.Make (E)
 
-  module Result = struct
-    (* We store the location as to compute an offset for cached results *)
-    type t = Coq.Loc_t.t * (E.output, Coq.Loc_t.t) Coq.Protect.E.t * CS.t
-  end
+  type entry =
+    { loc : Coq.Loc_t.t
+          (** where the result was produced, so it can be shifted to where it is
+              reused *)
+    ; res : (E.output, Coq.Loc_t.t) Coq.Protect.E.t
+    ; stats : CS.t
+    ; mutable hits : int  (** how often this entry was reused *)
+    }
 
-  type cache = Result.t HC.t
-
-  let cache : cache = HC.create 1000
+  let cache : entry HC.t = HC.create 1000
 
   (* This is very expensive *)
   let size () = Obj.reachable_words (Obj.magic cache)
-  let all_freqs = HC.all_freqs
   let input_info = E.input_info
   let stats () = HC.stats cache
   let clear () = HC.clear cache
+
+  let all_freqs () =
+    HC.fold (fun _ e acc -> e.hits :: acc) cache []
+    |> List.sort (fun x y -> -Int.compare x y)
+
+  (* Interrupted executions are not cached *)
+  let add i entry =
+    match entry.res.Coq.Protect.E.r with
+    | Coq.Protect.R.Interrupted -> ()
+    | _ -> HC.replace cache i entry
 
   let in_cache i =
     let kind = CS.Kind.Hashing in
@@ -323,17 +285,20 @@ module CEval (E : LocEvalType) = struct
   let evalS ~token i =
     let stm_loc = E.loc_of_input i in
     match in_cache i with
-    | Some (cached_loc, res, stats), { time = time_hash; memory = _ } ->
+    | Some entry, { time = time_hash; memory = _ } ->
       if Debug.cache then Io.Log.trace "memo" "cache hit";
       GlobalCacheStats.hit ();
-      let res = Loc_utils.adjust_offset ~stm_loc ~cached_loc res in
-      (res, Stats.make ~stats ~cache_hit:true ~time_hash ())
+      entry.hits <- entry.hits + 1;
+      let res =
+        Loc_utils.adjust_offset ~stm_loc ~cached_loc:entry.loc entry.res
+      in
+      (res, Stats.make ~stats:entry.stats ~cache_hit:true ~time_hash ())
     | None, { time = time_hash; memory = _ } ->
       if Debug.cache then Io.Log.trace "memo" "cache miss";
       GlobalCacheStats.miss ();
       let kind = CS.Kind.Exec in
       let res, stats = CS.record ~kind ~f:(E.eval ~token) i in
-      let () = HC.add_execution_loc cache i (stm_loc, res, stats) in
+      let () = add i { loc = stm_loc; res; stats; hits = 0 } in
       (res, Stats.make ~stats ~cache_hit:false ~time_hash ())
 
   let evalS ~token i =
