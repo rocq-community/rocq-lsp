@@ -1198,11 +1198,11 @@ let check ~io ~token ~target ~doc () =
     Util.print_stats ();
     doc
 
-(* The states a document is made of are claimed in the store on its behalf:
-   pet drops the document after every request, and the LSP would otherwise
-   lose them to the store's cache bound. The claim is refreshed on every
-   check; the physical diff inside [Doc_own.set] makes that free when the
-   check moved nothing. *)
+(* The states a document is made of are claimed in the store on its behalf: pet
+   drops the document after every request, and the LSP would otherwise lose them
+   to the store's cache bound. The claim is refreshed on every check; the
+   physical diff inside [Doc_own.set] makes that free when the check moved
+   nothing. *)
 let own_states doc =
   let states = doc.root :: List.map Node.state doc.nodes in
   Doc_own.set doc.uri states
@@ -1258,18 +1258,32 @@ let save_vof ~token ~doc =
 (* run api, experimental *)
 
 (* Adaptor, should be supported in memo directly *)
-let eval_no_memo ~token (st, cmd) =
-  Coq.Interp.interp ~token ~intern:Vernacinterp.fs_intern ~st cmd
+(* Same dispatch as the checking path ([interp_and_info]): a [Require] has its
+   own cache, keyed on the set of .vo files. Running one through [Memo.Interp]
+   instead would both ignore that key and, worse, produce a state the document's
+   own chain is not keyed on, so replaying a file's text would miss from the
+   first [Require] onwards. *)
+let eval_no_memo ~token ~files (st, cmd) =
+  match Coq.Ast.Require.extract cmd with
+  | None -> Coq.Interp.interp ~token ~intern:Vernacinterp.fs_intern ~st cmd
+  | Some cmd ->
+    Coq.Interp.Require.interp ~token ~intern:Vernacinterp.fs_intern ~st files
+      cmd
+
+let eval_memo ~token ~files (st, cmd) =
+  match Coq.Ast.Require.extract cmd with
+  | None -> Memo.Interp.eval ~token (st, cmd)
+  | Some cmd -> Memo.Require.eval ~token (st, files, cmd)
 
 (* TODO, what to do with feedback, what to do with errors *)
-let rec parse_execute_loop ~token ~memo pa st =
+let rec parse_execute_loop ~token ~memo ~files pa st =
   let open Coq.Protect.E.O in
-  let eval = if memo then Memo.Interp.eval else eval_no_memo in
+  let eval = if memo then eval_memo else eval_no_memo in
   let* ast = Coq.Parsing.parse ~token ~st pa in
   match ast with
   | Some ast ->
-    let* st = eval ~token (st, ast) in
-    parse_execute_loop ~token ~memo pa st
+    let* st = eval ~token ~files (st, ast) in
+    parse_execute_loop ~token ~memo ~files pa st
   (* On EOF we return the previous state, the command was the empty string or a
      comment *)
   | None -> Coq.Protect.E.ok st
@@ -1279,7 +1293,7 @@ let parse_and_execute_in ~token ~loc tac st =
   let pa = Coq.Parsing.Parsable.make ?loc str in
   parse_execute_loop ~token pa st
 
-let run ~token ?loc ?(memo = true) ~st cmds =
+let run ~token ?loc ?(memo = true) ~files ~st cmds =
   Coq.State.in_stateM ~token ~st
-    ~f:(parse_and_execute_in ~token ~loc ~memo cmds)
+    ~f:(parse_and_execute_in ~token ~loc ~memo ~files cmds)
     st

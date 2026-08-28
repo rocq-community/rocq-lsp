@@ -127,12 +127,13 @@ let find_thm ~(doc : Fleche.Doc.t) ~thm =
       in
       Error Error.(make (Theorem_not_found msg) ~feedback))
 
-let execute_precommands ~token ~memo ~pre_commands ~(node : Fleche.Doc.Node.t) =
+let execute_precommands ~token ~memo ~files ~pre_commands
+    ~(node : Fleche.Doc.Node.t) =
   match (pre_commands, node.prev, node.ast) with
   | Some pre_commands, Some prev, Some ast ->
     let st = prev.state in
     let open Coq.Protect.E.O in
-    let* st = Fleche.Doc.run ~token ~memo ?loc:None ~st pre_commands in
+    let* st = Fleche.Doc.run ~token ~memo ~files ?loc:None ~st pre_commands in
     (* We re-interpret the lemma statement *)
     Fleche.Memo.Interp.eval ~token (st, ast.v)
   | _, _, _ -> Coq.Protect.E.ok node.state
@@ -227,19 +228,24 @@ let start ~token ~doc ?opts ?pre_commands ~thm () =
   let memo, hash = (opts.memo, opts.hash) in
   let execution =
     let open Coq.Protect.E.O in
-    let+ st = execute_precommands ~token ~memo ~pre_commands ~node in
+    let files = doc.Fleche.Doc.env.files in
+    let+ st = execute_precommands ~token ~memo ~files ~pre_commands ~node in
     (* Note this runs on the resulting state, anyways it is purely functional *)
     analyze_after_run ~hash st
   in
   protect_to_result execution
 
-let run ~token ?opts ~st ~tac () : (_ Run_result.t, Error.t) Request.R.t =
+let run ~token ?opts ?files ~st ~tac () : (_ Run_result.t, Error.t) Request.R.t
+    =
   let opts = default_opts opts in
+  (* A caller that has no document has no file generation either; that is the
+     un-bumped one, which is what pet always uses. *)
+  let files = Option.default (Coq.Files.make ()) files in
   (* Improve with thm? *)
   let memo, hash = (opts.memo, opts.hash) in
   let execution =
     let open Coq.Protect.E.O in
-    let+ st = Fleche.Doc.run ~token ~memo ?loc:None ~st tac in
+    let+ st = Fleche.Doc.run ~token ~memo ~files ?loc:None ~st tac in
     (* Note this runs on the resulting state, anyways it is purely functional *)
     analyze_after_run ~hash st
   in
@@ -251,7 +257,8 @@ let run_at_pos ~token ?opts ~doc ~point ~command () :
   match Fleche.Info.(LC.node ~doc ~point PrevIfEmpty) with
   | Some { Fleche.Doc.Node.state = st; _ } ->
     let open Coq.Compat.Result.O in
-    let+ res = run ~token ?opts ~st ~tac:command () in
+    let files = doc.Fleche.Doc.env.files in
+    let+ res = run ~token ?opts ~files ~st ~tac:command () in
     (* Return more info eventually? *)
     Run_result.map ~f:(fun _ -> ()) res
   | None -> Error (Error.make_request No_node_at_point)

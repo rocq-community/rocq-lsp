@@ -142,6 +142,7 @@ val start :
 val run :
      token:Coq.Limits.Token.t
   -> ?opts:Run_opts.t
+  -> ?files:Coq.Files.t
   -> st:State.t
   -> tac:string
   -> unit
