@@ -542,5 +542,16 @@ end
 
 module Init = SEval (InitEval)
 
+let clear_all () =
+  Intern.clear ();
+  Interp.clear ();
+  Admit.clear ();
+  Init.clear ();
+  Require.clear ();
+  States.gc ()
+
+(* The caches hold ids; the states those name live in the store, so measuring
+   retention has to count both. *)
 let all_size () =
   Init.size () + Interp.size () + Require.size () + Admit.size ()
+  + States.size ()

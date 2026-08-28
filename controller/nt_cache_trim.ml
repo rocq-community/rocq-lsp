@@ -68,19 +68,21 @@ let pp_cache fmt (name, freqs) =
   Format.fprintf fmt "@[%s: %d | %a @[(%a)@]@]" name (List.length freqs) pp_zsum
     zsum pp_fsum fsum
 
+let pp_states fmt () =
+  let { Fleche.States.live; roots; docs; clients; unowned } =
+    Fleche.States.stats ()
+  in
+  Format.fprintf fmt
+    "@[states: %d | roots: %d, docs: %d, clients: %d, unowned: %d@]" live roots
+    docs clients unowned
+
 let build_message fmt () =
   let caches = caches () in
-  Format.fprintf fmt "@[Cache trim requested:@\n @[<v>%a@]@]"
+  Format.fprintf fmt "@[Cache trim requested:@\n @[<v>%a@\n%a@]@]"
     (Format.pp_print_list pp_cache)
-    caches
+    caches pp_states ()
 
-let cache_trim () =
-  let () = M.Intern.clear () in
-  let () = M.Interp.clear () in
-  let () = M.Admit.clear () in
-  let () = M.Init.clear () in
-  let () = M.Require.clear () in
-  ()
+let cache_trim () = ignore (M.clear_all () : Fleche.States.stats)
 
 let gc_stats ~io hd msg =
   Fleche.Io.Report.msg ~io ~lvl:Info "[%s] %s:@\n%a" hd msg
