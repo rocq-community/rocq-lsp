@@ -50,6 +50,13 @@ module S (C : Chans) : sig
   val state_proof_hash :
     StateProofHash.Params.t -> (StateProofHash.Response.t, string) result
 
+  val state_free : StateFree.Params.t -> (StateFree.Response.t, string) result
+
+  val state_stats :
+    StateStats.Params.t -> (StateStats.Response.t, string) result
+
+  val cache_trim : CacheTrim.Params.t -> (CacheTrim.Response.t, string) result
+
   val list_notations_in_statement :
     ListNotations.Params.t -> (ListNotations.Response.t, string) result
 

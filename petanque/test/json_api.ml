@@ -161,7 +161,7 @@ let run (ic, oc) =
   let* st = r ~st ~tac:"reflexivity." in
   let* h3 = S.state_hash { st = st.st } in
   (* for some reason the hashes end up equal, some discussion in #1103 *)
-  assert (not (Int.equal h1 h3) || true);
+  assert ((not (Int.equal h1 h3)) || true);
   (* Note, in json mode de-seralization of plugins only work if we load the
      serlib plugins before *)
   let* _ast1 = S.ast { st = st.st; text = "Check (fun x => x)." } in
@@ -174,7 +174,36 @@ let run (ic, oc) =
   let* st = r ~st ~tac:"Search naat." in
   check_search st 6;
   (* No goals after qed *)
-  S.goals { st = extract_st st; opts = None }
+  let* final_goals = S.goals { st = extract_st st; opts = None } in
+  (* Protocol v4: handles can be given back. Freeing releases the claim but
+     keeps the state cached, so the handle still works until a trim. *)
+  let freed_handle = extract_st st in
+  let doc_handle = st'.st in
+  let* stats = S.state_stats { gc = false } in
+  assert (stats.Protocol.StoreStats.clients > 0);
+  let* { Protocol.StateFree.Response.freed; live } =
+    S.state_free { st = [ freed_handle ] }
+  in
+  assert (freed = 1);
+  assert (live > 0);
+  (* Repeating a free is harmless and gives up nothing *)
+  let* { Protocol.StateFree.Response.freed; _ } =
+    S.state_free { st = [ freed_handle ] }
+  in
+  assert (freed = 0);
+  (* Freed but not yet dropped, the handle still resolves *)
+  let* _goals = S.goals { st = freed_handle; opts = None } in
+  (* Trim drops what nobody claims, so the freed handle dies... *)
+  let* trim_stats = S.cache_trim { full_major = false } in
+  assert (trim_stats.Protocol.StoreStats.unowned = 0);
+  (match S.goals { st = freed_handle; opts = None } with
+  | Error _ -> ()
+  | Ok _ ->
+    Format.eprintf "error: freed and trimmed handle still resolves@\n%!";
+    assert false);
+  (* ... while a document state survives, documents keep theirs *)
+  let* _goals = S.goals { st = doc_handle; opts = None } in
+  Ok final_goals
 
 let main () =
   let server_out, server_in = Unix.open_process "pet" in

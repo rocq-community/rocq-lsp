@@ -39,6 +39,9 @@
     * [`petanque/state/hash`](#petanquestatehash)
     * [`petanque/state/proof/equal`](#petanquestateproofequal)
     * [`petanque/state/proof/hash`](#petanquestateproofhash)
+    * [`petanque/state/free`](#petanquestatefree)
+    * [`petanque/state/stats`](#petanquestatestats)
+    * [`petanque/cache/trim`](#petanquecachetrim)
     * [`petanque/ast`](#petanqueast)
     * [`petanque/ast_at_pos`](#petanqueastatpos)
     * [`petanque/proof_info`](#petanqueproofinfo)
@@ -694,6 +697,7 @@ export interface CoqLspServerConfig {
   debug: boolean;
   unicode_completion: "off" | "normal" | "extended"; // Deprecated
   max_errors: number;
+  state_cache_size: number;
   pp_type: 0 | 1 | 2;
   show_stats_on_hover: boolean;
   show_loc_info_on_hover: boolean;
@@ -713,6 +717,11 @@ client.
 <!-- TOC --><a name="changelog-5"></a>
 #### Changelog
 
+- v0.2.6: New option `state_cache_size`: how many Rocq states nobody
+  claims the server keeps as a cache, least recently used first out.
+  Client handles that were not freed, the most recently used open
+  documents, and root states are claims, so they are never dropped and
+  do not count against it.
 - v0.2.5: New option `show_comments_on_hover`
 - v0.2.4:
   + Deprecate `unicode_completion` in favor of new `completion:
@@ -829,6 +838,18 @@ Preliminary documentation for `pétanque` is provided below:
   + **changed**: `petanque/get_state_at_pos` will not error if there is no node at point
   + **added**: new method `petanque/run_at_pos`
   + **added**: new methods `petanque/proof_info` and `petanque/proof_info_at_pos`
+- v4 (`rocq-lsp` 0.2.6):
+  + **added**: new methods [`petanque/state/free`](#petanquestatefree),
+    [`petanque/state/stats`](#petanquestatestats) and
+    [`petanque/cache/trim`](#petanquecachetrim); a client can now release the
+    states it no longer needs instead of the server growing until it is killed
+  + **changed**: state handles are ids in a server-side store. Serialising the
+    same state twice usually yields the same id (the dedup is best effort, not
+    a guarantee), the same id always means the same state, and a state a
+    client has not freed is never dropped. Free every distinct id you were
+    handed, once; frees are idempotent
+  + **changed**: states no one holds are kept as a bounded cache instead of
+    accumulating; the bound is the `state_cache_size` server setting
 
 ### Pétanque basics
 
@@ -1068,6 +1089,83 @@ Version of `petanque/state/equal` but only for the proof state.
 ### `petanque/state/proof/hash`
 
 Version of `petanque/state/hash` but only for the proof state.
+
+<!-- TOC --><a name="petanquestatefree"></a>
+### `petanque/state/free`
+
+Give back the handles a client no longer needs. A state is pinned as long as
+some client holds a handle on it, a document is made of it, or it roots a
+document; `state/free` gives up the client's claim. The state is not dropped
+on the spot: it joins the server's cache of unclaimed states, which is bounded
+in number by the `state_cache_size` setting and evicts least recently used
+first. Freeing promptly therefore costs no warmth, and a freed then re-derived
+state is still a cache hit. Using an id after it was dropped fails the request
+with a `key N for object state not found` error, at which point the client
+must re-derive the state.
+
+A handle is claimed once however many times its id was returned, so one free
+per distinct id releases it; ids that are unknown or already freed are
+ignored, so repeating a free is harmless. Note that receiving an id {e again
+after} freeing it re-establishes the claim, so a client that keeps using a
+state after a free owes a fresh free for it: balance every distinct id
+received since the last free with one free. `freed` counts the handles that
+actually gave up a claim, so a repeated free, or one naming a state the client
+never held, does not count it; `live` is how many states remain in the store
+afterwards.
+
+A long-running client should free every distinct id it was handed once it is
+done with it; `state/stats` tells a growing working set from a forgotten
+free.
+
+Claims are per state, not per connection, so the store assumes a single
+client. Against `pet-server`, which accepts several connections onto one
+store, handles are shared: one client freeing an id drops the claim for all
+of them, and the claims of a client that disconnects without freeing are only
+reclaimable through `cache/trim`. Free what you hold before disconnecting.
+
+```typescript
+interface Params = { st: number[] }
+```
+
+```typescript
+interface Response = { freed: number, live: number }
+```
+
+<!-- TOC --><a name="petanquestatestats"></a>
+### `petanque/state/stats`
+
+What the state store holds, and for whom. Useful to tell a growing working
+set from a leak: `clients` counts states some handle still refers to, `docs`
+those a checked document is made of, `unowned` the bounded cache. Pass
+`gc: true` to drop the cache first and measure only what is pinned.
+
+```typescript
+interface Params = { gc?: boolean }   // gc defaults to false
+```
+
+```typescript
+interface Response = { live: number, roots: number, docs: number,
+                       clients: number, unowned: number }
+```
+
+<!-- TOC --><a name="petanquecachetrim"></a>
+### `petanque/cache/trim`
+
+Drop every cache, the petanque counterpart of the `coq/trimCaches` LSP
+notification. Blunt: the
+next request re-checks from scratch, which on a large development is
+expensive. The cache is bounded, so routine cleanup does not need this;
+prefer `petanque/state/free` for handles, and reserve trim for giving memory
+back right now.
+
+```typescript
+interface Params = { full_major?: boolean }   // defaults to false
+```
+
+```typescript
+interface Response = { live: number, roots: number, docs: number,
+                       clients: number, unowned: number }
+```
 
 <!-- TOC --><a name="petanqueast"></a>
 ### `petanque/ast`

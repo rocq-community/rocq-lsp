@@ -1,3 +1,27 @@
+# coq-lsp 0.2.6: unreleased
+--------------------------
+
+ - [fleche] New central state store (`Fleche.States`): Rocq states are
+   owned in one place and referred to by id, so the memo caches no
+   longer retain them. Documents and protocol handles pin the states
+   they name; everything else is a cache, bounded by the new
+   `state_cache_size` setting, with the least recently used states
+   dropped past it (@remix7531)
+ - [petanque] New requests `petanque/state/free`,
+   `petanque/state/stats` and `petanque/cache/trim`, letting a
+   long-running client release states instead of growing until the
+   process is killed; protocol version is now 4 (@remix7531)
+ - [petanque] State handles are ids in the store: the same id always
+   means the same state, serialising the same state twice usually
+   yields the same id, and a state a client has not freed is never
+   dropped. Clients should free every distinct id they were handed
+   (@remix7531)
+ - [fleche] `Doc.run` takes a new mandatory `files` argument, and runs
+   `Require` sentences through the `Require` cache instead of the
+   sentence cache, which also serves `petanque/run` and goals with
+   `pretac`; the `Require` cache is cleared on a workspace update
+   (@remix7531)
+
 # coq-lsp 0.2.5: New epoch
 --------------------------
 

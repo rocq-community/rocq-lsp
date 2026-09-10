@@ -39,7 +39,9 @@ module Handle = struct
         Lang.LUri.File.pp uri);
     Hashtbl.add doc_table uri { doc; cp_requests = IS.empty; pt_requests = [] }
 
-  let close ~uri = Hashtbl.remove doc_table uri
+  let close ~uri =
+    Doc_own.remove uri;
+    Hashtbl.remove doc_table uri
 
   let with_doc ~kind ~f ~uri ~default =
     match Hashtbl.find_opt doc_table uri with
@@ -152,6 +154,10 @@ module Handle = struct
     Hashtbl.filter_map_inplace update_doc_env doc_table;
     (* We forget the old .vo files in the .vo cache too *)
     Memo.Intern.clear ();
+    (* The bump above retires the [Require] entries of every document, but not
+       those of a caller that has no document to bump: pétanque's [run] keys on
+       the generation it started with, so a stale entry would survive there. *)
+    Memo.Require.clear ();
     !invalid_req
 end
 

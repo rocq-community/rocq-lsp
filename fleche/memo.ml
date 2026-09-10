@@ -97,73 +97,6 @@ module GlobalCacheStats = struct
       Format.asprintf "cache hit rate: %3.2f" hit_rate
 end
 
-module MemoTable = struct
-  module type S = sig
-    (* Stronger than Hashtbl.S due to the more advanced cache *)
-    type key
-    type !'a t
-
-    val create : int -> 'a t
-    val find_opt : 'a t -> key -> 'a option
-
-    (* Clears the cache *)
-    val clear : 'a t -> unit
-
-    val add_execution :
-         (('a, 'l) Coq.Protect.E.t * 'b) t
-      -> key
-      -> ('a, 'l) Coq.Protect.E.t * 'b
-      -> unit
-
-    val add_execution_loc :
-         ('v * ('a, 'l) Coq.Protect.E.t * 'b) t
-      -> key
-      -> 'v * ('a, 'l) Coq.Protect.E.t * 'b
-      -> unit
-
-    (** sorted *)
-    val all_freqs : unit -> int list
-
-    val stats : 'a t -> Hashtbl.statistics
-  end
-
-  module Make (H : Hashtbl.HashedType) : S with type key = H.t = struct
-    include Hashtbl.Make (H)
-
-    (* Number of times a value has been found *)
-    let count = create 1000
-
-    let clear t =
-      clear count;
-      clear t
-
-    let add t k v =
-      replace count k 0;
-      add t k v
-
-    let find_opt t k =
-      match find_opt t k with
-      | None -> None
-      | Some res ->
-        replace count k (find count k + 1);
-        Some res
-
-    let all_freqs () =
-      to_seq_values count |> List.of_seq
-      |> List.sort (fun x y -> -Int.compare x y)
-
-    let add_execution t k (({ Coq.Protect.E.r; _ }, _) as v) =
-      match r with
-      | Coq.Protect.R.Interrupted -> ()
-      | _ -> add t k v
-
-    let add_execution_loc t k ((_, { Coq.Protect.E.r; _ }, _) as v) =
-      match r with
-      | Coq.Protect.R.Interrupted -> ()
-      | _ -> add t k v
-  end
-end
-
 (* XXX: Move elsewhere *)
 module Loc_utils : sig
   val adjust_offset :
@@ -208,15 +141,48 @@ end = struct
     Coq.Protect.E.map_loc ~f res
 end
 
-module type EvalType = sig
-  include Hashtbl.HashedType
+(* Results are stored with their output state replaced by a store id, so the
+   caches themselves retain no Rocq states; a hit whose state has been evicted
+   is simply a miss. *)
+let store_res res = Coq.Protect.E.map ~f:States.register res
 
-  type output
+(* A stored result is usable only while the state it names is still in the
+   store; [None] tells the caller to treat the entry as a miss. *)
+let restore_res res =
+  match res.Coq.Protect.E.r with
+  | Coq.Protect.R.Completed (Ok id) ->
+    States.get id
+    |> Option.map (fun st -> Coq.Protect.E.map ~f:(fun _ -> st) res)
+  | Coq.Protect.R.Completed (Error _) | Coq.Protect.R.Interrupted ->
+    (* There is no id in these, so [map] cannot call [f]; it only moves the
+       result over to the state type. *)
+    Some (Coq.Protect.E.map ~f:(fun _ -> assert false) res)
+
+(* The store id a result names, if any, so that an entry can be indexed on the
+   state it produces as well as on the one it extends. *)
+let res_id res =
+  match res.Coq.Protect.E.r with
+  | Coq.Protect.R.Completed (Ok id) -> Some id
+  | Coq.Protect.R.Completed (Error _) | Coq.Protect.R.Interrupted -> None
+
+module type EvalType = sig
+  (** Input, as callers see it *)
+  type t
+
+  (** Cache key: the input with its Rocq state replaced by a store id *)
+  type key
+
+  val key : t -> key
+  val key_equal : key -> key -> bool
+  val key_hash : key -> int
+
+  (** The state a key is relative to, so entries can be pruned on eviction *)
+  val key_id : key -> States.id
 
   val name : string
 
   val eval :
-    token:Coq.Limits.Token.t -> t -> (output, Coq.Loc_t.t) Coq.Protect.E.t
+    token:Coq.Limits.Token.t -> t -> (Coq.State.t, Coq.Loc_t.t) Coq.Protect.E.t
 
   val input_info : t -> string
 end
@@ -224,6 +190,8 @@ end
 (** Flèche memo / cache tables, with some advanced features *)
 module type S = sig
   type input
+
+  (** For now, to generalize later if needed *)
   type output
 
   (** [eval i] Eval an input [i] *)
@@ -252,34 +220,179 @@ module type S = sig
   val clear : unit -> unit
 end
 
-module SEval (E : EvalType) :
-  S with type input = E.t and type output = E.output = struct
+(* The caches differ only in what they record beside a result, and in whether
+   they are traced and counted in the global hit rate. *)
+module type Payload = sig
+  type input
+  type t
+
+  val make : input -> t
+
+  (** Adapt a cached result to the input it is being reused for *)
+  val repair :
+       t (* of the input at hand *)
+    -> t (* of the input the result was produced for *)
+    -> (Coq.State.t, Coq.Loc_t.t) Coq.Protect.E.t
+    -> (Coq.State.t, Coq.Loc_t.t) Coq.Protect.E.t
+
+  val reported : bool
+end
+
+module Eval (E : EvalType) (P : Payload with type input = E.t) :
+  S with type input = E.t and type output = Coq.State.t = struct
   type input = E.t
-  type output = E.output
+  type output = Coq.State.t
 
-  module HC = MemoTable.Make (E)
+  module HC = Hashtbl.Make (struct
+    type t = E.key
 
-  let cache = HC.create 1000
+    let equal = E.key_equal
+    let hash = E.key_hash
+  end)
+
+  module IM = Hashtbl.Make (struct
+    type t = States.id
+
+    let equal = States.equal
+    let hash = States.hash
+  end)
+
+  type entry =
+    { payload : P.t
+    ; res : (States.id, Coq.Loc_t.t) Coq.Protect.E.t
+    ; stats : CS.t
+    ; mutable hits : int
+    }
+
+  let cache : entry HC.t = HC.create 1000
+
+  (* The keys of the entries that mention a given state, either as the one they
+     extend or as the one they produce, so that an eviction visits those entries
+     alone instead of the whole cache.
+
+     A key is a member exactly while its entry is cached, and every removal
+     unlists it: were one to skip that, a key re-evaluated after an eviction
+     would pile up one stale member per evaluation for as long as the process
+     runs. Membership is a hashtable rather than a list because unlisting has to
+     be cheap: many entries extend the same hot state, and scanning a list of
+     keys compares ASTs, which would make a batched eviction quadratic exactly
+     under the fan-out workloads the store exists for. *)
+  let keys_by_state : unit HC.t IM.t = IM.create 1000
+
+  (* This is very expensive *)
   let size () = Obj.reachable_words (Obj.magic cache)
-  let input_info i = E.input_info i
-  let all_freqs = HC.all_freqs
+  let input_info = E.input_info
   let stats () = HC.stats cache
-  let clear () = HC.clear cache
+
+  let clear () =
+    HC.clear cache;
+    IM.clear keys_by_state
+
+  let all_freqs () =
+    HC.fold (fun _ e acc -> e.hits :: acc) cache []
+    |> List.sort (fun x y -> -Int.compare x y)
+
+  (* The states an entry mentions: the one its key extends, and the one its
+     result produces when that is a different state. *)
+  let states_of key res =
+    let key_id = E.key_id key in
+    match res_id res with
+    | Some out when not (States.equal out key_id) -> [ key_id; out ]
+    | Some _ | None -> [ key_id ]
+
+  let index key res =
+    let list_at id =
+      let keys =
+        match IM.find_opt keys_by_state id with
+        | None ->
+          let keys = HC.create 4 in
+          IM.replace keys_by_state id keys;
+          keys
+        | Some keys -> keys
+      in
+      HC.replace keys key ()
+    in
+    List.iter list_at (states_of key res)
+
+  (* The one way out of the cache, so that an entry is never left listed under a
+     state it no longer has an entry for. *)
+  let remove key entry =
+    let unlist_at id =
+      match IM.find_opt keys_by_state id with
+      | None -> ()
+      | Some keys ->
+        HC.remove keys key;
+        if HC.length keys = 0 then IM.remove keys_by_state id
+    in
+    HC.remove cache key;
+    List.iter unlist_at (states_of key entry.res)
+
+  (* An entry mentioning an evicted state can never hit again *)
+  let prune ids =
+    let evict id =
+      match IM.find_opt keys_by_state id with
+      | None -> ()
+      | Some keys ->
+        (* Detached up front: [remove] unlists under both states an entry
+           mentions, and this table is going away wholesale anyway, so its own
+           binding must already be gone when [remove] looks for it. *)
+        IM.remove keys_by_state id;
+        let remove_cached key () =
+          match HC.find_opt cache key with
+          | None -> ()
+          | Some entry -> remove key entry
+        in
+        HC.iter remove_cached keys
+    in
+    List.iter evict ids
+
+  let () = States.on_evict prune
+
+  (* Interrupted executions are not cached *)
+  let add key entry =
+    match entry.res.Coq.Protect.E.r with
+    | Coq.Protect.R.Interrupted -> ()
+    | _ ->
+      index key entry.res;
+      HC.replace cache key entry
 
   let in_cache i =
     let kind = CS.Kind.Hashing in
-    CS.record ~kind ~f:(HC.find_opt cache) i
+    let f i =
+      let key = E.key i in
+      (key, HC.find_opt cache key)
+    in
+    CS.record ~kind ~f i
+
+  let miss ~token ~time_hash ~key ~payload i =
+    if P.reported then (
+      if Debug.cache then Io.Log.trace "memo" "cache miss";
+      GlobalCacheStats.miss ());
+    let kind = CS.Kind.Exec in
+    let f i = E.eval ~token i in
+    let res, stats = CS.record ~kind ~f i in
+    let () = add key { payload; res = store_res res; stats; hits = 0 } in
+    (res, Stats.make ~stats ~cache_hit:false ~time_hash ())
 
   let evalS ~token i =
+    let payload = P.make i in
     match in_cache i with
-    | Some (cached_res, stats), { time = time_hash; memory = _ } ->
-      (cached_res, Stats.make ~stats ~cache_hit:true ~time_hash ())
-    | None, { time = time_hash; memory = _ } ->
-      let kind = CS.Kind.Exec in
-      let f i = E.eval ~token i in
-      let res, stats = CS.record ~kind ~f i in
-      let () = HC.add_execution cache i (res, stats) in
-      (res, Stats.make ~stats ~cache_hit:false ~time_hash ())
+    | (key, Some entry), { time = time_hash; memory = _ } -> (
+      match restore_res entry.res with
+      | Some res ->
+        if P.reported then (
+          if Debug.cache then Io.Log.trace "memo" "cache hit";
+          GlobalCacheStats.hit ());
+        entry.hits <- entry.hits + 1;
+        let res = P.repair payload entry.payload res in
+        (res, Stats.make ~stats:entry.stats ~cache_hit:true ~time_hash ())
+      | None ->
+        (* Not redundant with the [add] in [miss]: an interrupted re-execution
+           is not cached, and the entry we know is stale has to go anyway. *)
+        remove key entry;
+        miss ~token ~time_hash ~key ~payload i)
+    | (key, None), { time = time_hash; memory = _ } ->
+      miss ~token ~time_hash ~key ~payload i
 
   let evalS ~token i =
     let name = "Memo." ^ E.name in
@@ -287,6 +400,20 @@ module SEval (E : EvalType) :
 
   let eval ~token i = evalS ~token i |> fst
 end
+
+(* Caches with nothing to record beside the result *)
+module SEval (E : EvalType) :
+  S with type input = E.t and type output = Coq.State.t =
+  Eval
+    (E)
+    (struct
+      type input = E.t
+      type t = unit
+
+      let make _ = ()
+      let repair () () res = res
+      let reported = false
+    end)
 
 module type LocEvalType = sig
   include EvalType
@@ -294,73 +421,42 @@ module type LocEvalType = sig
   val loc_of_input : t -> Coq.Loc_t.t
 end
 
-module CEval (E : LocEvalType) = struct
-  type input = E.t
-  type output = E.output
+(* Caches that record the location a result was produced at, so that it can be
+   shifted to the one it is reused at *)
+module CEval (E : LocEvalType) :
+  S with type input = E.t and type output = Coq.State.t =
+  Eval
+    (E)
+    (struct
+      type input = E.t
+      type t = Coq.Loc_t.t
 
-  module HC = MemoTable.Make (E)
+      let make = E.loc_of_input
 
-  module Result = struct
-    (* We store the location as to compute an offset for cached results *)
-    type t = Coq.Loc_t.t * (E.output, Coq.Loc_t.t) Coq.Protect.E.t * CS.t
-  end
+      let repair stm_loc cached_loc res =
+        Loc_utils.adjust_offset ~stm_loc ~cached_loc res
 
-  type cache = Result.t HC.t
-
-  let cache : cache = HC.create 1000
-
-  (* This is very expensive *)
-  let size () = Obj.reachable_words (Obj.magic cache)
-  let all_freqs = HC.all_freqs
-  let input_info = E.input_info
-  let stats () = HC.stats cache
-  let clear () = HC.clear cache
-
-  let in_cache i =
-    let kind = CS.Kind.Hashing in
-    CS.record ~kind ~f:(HC.find_opt cache) i
-
-  let evalS ~token i =
-    let stm_loc = E.loc_of_input i in
-    match in_cache i with
-    | Some (cached_loc, res, stats), { time = time_hash; memory = _ } ->
-      if Debug.cache then Io.Log.trace "memo" "cache hit";
-      GlobalCacheStats.hit ();
-      let res = Loc_utils.adjust_offset ~stm_loc ~cached_loc res in
-      (res, Stats.make ~stats ~cache_hit:true ~time_hash ())
-    | None, { time = time_hash; memory = _ } ->
-      if Debug.cache then Io.Log.trace "memo" "cache miss";
-      GlobalCacheStats.miss ();
-      let kind = CS.Kind.Exec in
-      let res, stats = CS.record ~kind ~f:(E.eval ~token) i in
-      let () = HC.add_execution_loc cache i (stm_loc, res, stats) in
-      (res, Stats.make ~stats ~cache_hit:false ~time_hash ())
-
-  let evalS ~token i =
-    let name = "Memo." ^ E.name in
-    NewProfile.profile name (fun () -> evalS ~token i) ()
-
-  let eval ~token i = evalS ~token i |> fst
-end
+      let reported = true
+    end)
 
 module VernacEval = struct
   let name = "Interp"
 
   type t = Coq.State.t * Coq.Ast.t
+  type key = States.id * Coq.Ast.t
+
+  let key (st, v) = (States.register st, v)
+  let key_id (id, _) = id
 
   (* This crutially relies on our ppx to ignore the CAst location *)
-  let equal (st1, v1) (st2, v2) =
-    if Coq.Ast.compare v1 v2 = 0 then
-      if Coq.State.compare st1 st2 = 0 then true else false
-    else false
+  let key_equal (id1, v1) (id2, v2) =
+    Coq.Ast.compare v1 v2 = 0 && States.equal id1 id2
 
-  let hash (st, v) = Hashtbl.hash (Coq.Ast.hash v, Coq.State.hash st)
+  let key_hash (id, v) = Hashtbl.hash (Coq.Ast.hash v, States.hash id)
   let loc_of_input (_, stm) = Coq.Ast.loc stm |> Option.get
 
   let input_info (st, v) =
     Format.asprintf "stm: %d | st %d" (Coq.Ast.hash v) (Hashtbl.hash st)
-
-  type output = Coq.State.t
 
   let eval ~token (st, stm) = Coq.Interp.interp ~token ~intern ~st stm
 end
@@ -371,18 +467,19 @@ module RequireEval = struct
   let name = "Require"
 
   type t = Coq.State.t * Coq.Files.t * Coq.Ast.Require.t
+  type key = States.id * Coq.Files.t * Coq.Ast.Require.t
+
+  let key (st, f, r) = (States.register st, f, r)
+  let key_id (id, _, _) = id
 
   (* This crutially relies on our ppx to ignore the CAst location *)
-  let equal (st1, f1, r1) (st2, f2, r2) =
-    if
-      Coq.Ast.Require.compare r1 r2 = 0
-      && Coq.Files.compare f1 f2 = 0
-      && Coq.State.compare st1 st2 = 0
-    then true
-    else false
+  let key_equal (id1, f1, r1) (id2, f2, r2) =
+    Coq.Ast.Require.compare r1 r2 = 0
+    && Coq.Files.compare f1 f2 = 0
+    && States.equal id1 id2
 
-  let hash (st, f, v) =
-    Hashtbl.hash (Coq.Ast.Require.hash v, Coq.Files.hash f, Coq.State.hash st)
+  let key_hash (id, f, v) =
+    Hashtbl.hash (Coq.Ast.Require.hash v, Coq.Files.hash f, States.hash id)
 
   let input_info (st, f, v) =
     Format.asprintf "stm: %d | st %d | f %d" (Coq.Ast.Require.hash v)
@@ -390,47 +487,49 @@ module RequireEval = struct
 
   let loc_of_input (_, _, stm) = Option.get stm.Coq.Ast.Require.loc
 
-  type output = Coq.State.t
-
   let eval ~token (st, files, stm) =
     Coq.Interp.Require.interp ~token ~intern ~st files stm
 end
 
 module Require = CEval (RequireEval)
 
-module Admit = SEval (struct
-  include Coq.State
-
+module AdmitEval = struct
   let name = "Admit"
 
-  type output = Coq.State.t
+  type t = Coq.State.t
+  type key = States.id
 
+  let key st = States.register st
+  let key_id id = id
+  let key_equal = States.equal
+  let key_hash = States.hash
   let input_info st = Format.asprintf "st %d" (Hashtbl.hash st)
   let eval ~token st = Coq.State.admit ~token ~st
-end)
+end
+
+module Admit = SEval (AdmitEval)
 
 module InitEval = struct
   let name = "Init"
 
   type t = Coq.State.t * Coq.Workspace.t * Coq.Files.t * Lang.LUri.File.t
+  type key = States.id * Coq.Workspace.t * Coq.Files.t * Lang.LUri.File.t
 
-  let equal (s1, w1, f1, u1) (s2, w2, f2, u2) : bool =
-    if Lang.LUri.File.compare u1 u2 = 0 then
-      if Coq.Workspace.compare w1 w2 = 0 then
-        if Coq.Files.compare f1 f2 = 0 then
-          if Coq.State.compare s1 s2 = 0 then true else false
-        else false
-      else false
-    else false
+  let key (st, w, f, uri) = (States.register st, w, f, uri)
+  let key_id (id, _, _, _) = id
 
-  let hash (st, w, f, uri) =
+  let key_equal (i1, w1, f1, u1) (i2, w2, f2, u2) : bool =
+    Lang.LUri.File.compare u1 u2 = 0
+    && Coq.Workspace.compare w1 w2 = 0
+    && Coq.Files.compare f1 f2 = 0
+    && States.equal i1 i2
+
+  let key_hash (id, w, f, uri) =
     Hashtbl.hash
-      ( Coq.State.hash st
+      ( States.hash id
       , Coq.Workspace.hash w
       , Coq.Files.hash f
       , Lang.LUri.File.hash uri )
-
-  type output = Coq.State.t
 
   let eval ~token (root_state, workspace, _files, uri) =
     Coq.Init.doc_init ~token ~intern ~root_state ~workspace ~uri
@@ -443,5 +542,16 @@ end
 
 module Init = SEval (InitEval)
 
+let clear_all () =
+  Intern.clear ();
+  Interp.clear ();
+  Admit.clear ();
+  Init.clear ();
+  Require.clear ();
+  States.gc ()
+
+(* The caches hold ids; the states those name live in the store, so measuring
+   retention has to count both. *)
 let all_size () =
   Init.size () + Interp.size () + Require.size () + Admit.size ()
+  + States.size ()

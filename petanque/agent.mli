@@ -15,6 +15,12 @@ module State : sig
 
   val name : string
 
+  (** Handles are ids in [Fleche.States], so the protocol layer needs to see
+      through the abstraction. *)
+
+  val to_coq : t -> Coq.State.t
+  val of_coq : Coq.State.t -> t
+
   (** OCaml poly Coq state hash; tuned for interactive edition. *)
   val hash : t -> int
 
@@ -136,6 +142,7 @@ val start :
 val run :
      token:Coq.Limits.Token.t
   -> ?opts:Run_opts.t
+  -> ?files:Coq.Files.t
   -> st:State.t
   -> tac:string
   -> unit

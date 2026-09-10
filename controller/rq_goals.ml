@@ -61,10 +61,10 @@ let pp_msgs ~pp_format =
   | Str | Box -> fun x -> `String (Coq.Pp_t.to_string x)
   | Pp -> fun x -> Lsp.JCoq.Pp_t.to_yojson x
 
-let run_pretac ~token ~loc ~st pretac =
+let run_pretac ~token ~loc ~files ~st pretac =
   match pretac with
   | None -> Coq.Protect.E.ok st
-  | Some tac -> Fleche.Doc.run ~token ?loc ~st tac
+  | Some tac -> Fleche.Doc.run ~token ?loc ~files ~st tac
 
 let get_goal_info ~pp_format ~compact ~token ~doc ~point ~mode ~pretac () =
   let open Fleche in
@@ -76,7 +76,8 @@ let get_goal_info ~pp_format ~compact ~token ~doc ~point ~mode ~pretac () =
     let st = Doc.Node.state node in
     (* XXX: Get the location from node *)
     let loc = None in
-    let* st = run_pretac ~token ~loc ~st pretac in
+    let files = doc.Doc.env.files in
+    let* st = run_pretac ~token ~loc ~files ~st pretac in
     let pr = pp ~pp_format in
     let+ goals = Info.Goals.goals ~token ~pr ~compact ~st in
     let program = Info.Goals.program ~st in

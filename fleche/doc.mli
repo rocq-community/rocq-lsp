@@ -191,6 +191,7 @@ val run :
      token:Coq.Limits.Token.t
   -> ?loc:Coq.Loc_t.t
   -> ?memo:bool
+  -> files:Coq.Files.t
   -> st:Coq.State.t
   -> string
   -> (Coq.State.t, Coq.Loc_t.t) Coq.Protect.E.t

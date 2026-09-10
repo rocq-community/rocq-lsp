@@ -78,6 +78,11 @@ module Require :
 (** Admit evaluation cache *)
 module Admit : S with type input = Coq.State.t and type output = Coq.State.t
 
+(** [clear_all ()] empties every cache, drops the states nobody claims, and
+    reports what the store is left holding. Documents keep theirs, as they did
+    before the store existed. *)
+val clear_all : unit -> States.stats
+
 module GlobalCacheStats : sig
   val reset : unit -> unit
 
@@ -85,5 +90,5 @@ module GlobalCacheStats : sig
   val stats : unit -> string
 end
 
-(** Size of all caches, very expensive *)
+(** Size of all caches and of the states they name, very expensive *)
 val all_size : unit -> int

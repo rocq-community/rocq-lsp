@@ -224,6 +224,11 @@
             "default": 150,
             "description": "Maximum number of errors per file, after that, coq-lsp will stop checking the file."
           },
+          "coq-lsp.state_cache_size": {
+            "type": "number",
+            "default": 10000,
+            "description": "How many unclaimed Rocq states the server keeps as a cache, least recently used first out. Open documents and states a client holds are not counted."
+          },
           "coq-lsp.send_diags_extra_data": {
             "type": "boolean",
             "default": false,
