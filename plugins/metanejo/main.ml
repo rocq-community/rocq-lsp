@@ -146,7 +146,7 @@ let analyze (CAst.{ loc = _; v } : Vernacexpr.vernac_control) : _ option =
     | VernacDeclareCustomEntry _ -> None
     | VernacBeginSection _ -> None
     | VernacEndSegment _ -> None
-    | VernacRequire (_, _, _) -> None
+    | VernacRequire _ | VernacSafeRequire _ -> None
     | VernacImport (_, _) -> None
     | VernacDeclareModule (_, _, _, _) -> None
     | VernacDefineModule (_, _, _, _, _) -> None
