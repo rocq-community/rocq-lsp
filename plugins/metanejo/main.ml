@@ -240,6 +240,7 @@ let analyze (CAst.{ loc = _; v } : Vernacexpr.vernac_control) : _ option =
     | VernacValidateProof -> None
     | VernacProof (_, _) -> None
     | VernacAddOption (_, _) -> None
+    | (VernacDropCapturedOutput|VernacAssertCapturedOutput (_, _)) -> None
     | VernacRemoveOption (_, _) -> None)
 
 let analyze (node : Doc.Node.t) =
