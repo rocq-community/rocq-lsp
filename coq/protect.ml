@@ -60,7 +60,6 @@ let eval_exn ~token ~f x =
   match Limits.limit ~token ~f x with
   | Ok res -> R.Completed (Ok res)
   | Error _ ->
-    Vernacstate.Interp.invalidate_cache ();
     R.Interrupted
   | exception exn ->
     let e, info = Exninfo.capture exn in
@@ -72,7 +71,6 @@ let eval_exn ~token ~f x =
       | Ok qf -> Some (List.map qf_of_coq qf)
     in
     let payload = Message.Payload.make ?range ?quickFix msg in
-    Vernacstate.Interp.invalidate_cache ();
     if CErrors.is_async e || CErrors.is_sync_anomaly e then
       R.Completed (Error (Anomaly payload))
     else R.Completed (Error (User payload))
