@@ -106,27 +106,40 @@ let mk_userlib unix_path =
 
 let getenv var else_ = try Sys.getenv var with Not_found -> else_
 
-let rec parse_args args init boot libs f w =
+let rec parse_args args init boot libs vo ml f w =
   match args with
-  | [] -> (init, boot, List.rev libs, f, List.rev w)
+  | [] -> (init, boot, List.rev libs, List.rev vo, List.rev ml, f, List.rev w)
   | "-rifrom" :: from :: lib :: rest ->
-    parse_args rest init boot ((Some from, lib) :: libs) f w
+    parse_args rest init boot ((Some from, lib) :: libs) vo ml f w
   | "-impredicative-set" :: rest ->
-    parse_args rest init boot libs { f with Flags.impredicative_set = true } w
+    parse_args rest init boot libs vo ml
+      { f with Flags.impredicative_set = true }
+      w
   | "-indices-matter" :: rest ->
-    parse_args rest init boot libs { f with Flags.indices_matter = true } w
+    parse_args rest init boot libs vo ml
+      { f with Flags.indices_matter = true }
+      w
   | "-type-in-type" :: rest ->
-    parse_args rest init boot libs { f with Flags.type_in_type = true } w
+    parse_args rest init boot libs vo ml { f with Flags.type_in_type = true } w
   | "-allow-rewrite-rules" :: rest ->
-    parse_args rest init boot libs { f with Flags.rewrite_rules = true } w
-  | "-noinit" :: rest -> parse_args rest false boot libs f w
-  | "-boot" :: rest -> parse_args rest init true libs f w
+    parse_args rest init boot libs vo ml { f with Flags.rewrite_rules = true } w
+  | "-noinit" :: rest -> parse_args rest false boot libs vo ml f w
+  | "-boot" :: rest -> parse_args rest init true libs vo ml f w
   | "-w" :: warn :: rest ->
     let warn = Warning.make warn in
-    parse_args rest init boot libs f (warn :: w)
+    parse_args rest init boot libs vo ml f (warn :: w)
+  | "-Q" :: unix_path :: coq_path :: rest ->
+    let coq_path = Libnames.dirpath_of_string coq_path in
+    let lp = mk_lp ~coq_path ~unix_path ~implicit:false ~installed:false in
+    parse_args rest init boot libs (lp :: vo) ml f w
+  | "-R" :: unix_path :: coq_path :: rest ->
+    let coq_path = Libnames.dirpath_of_string coq_path in
+    let lp = mk_lp ~coq_path ~unix_path ~implicit:true ~installed:false in
+    parse_args rest init boot libs (lp :: vo) ml f w
+  | "-I" :: dir :: rest -> parse_args rest init boot libs vo (dir :: ml) f w
   | _ :: rest ->
     (* emit warning? *)
-    parse_args rest init boot libs f w
+    parse_args rest init boot libs vo ml f w
 
 module CmdLine = struct
   type t =
@@ -155,9 +168,10 @@ let make ~add_dir ~cmdline ~implicit ~kind ~debug =
   in
   let coqlib = getenv "ROCQLIB" (getenv "COQLIB" coqlib) in
   let mk_path_coqlib prefix = coqlib ^ "/" ^ prefix in
-  let init, boot, libs, flags, warnings =
-    parse_args args true false [] Flags.default []
+  let init, boot, libs, arg_vo_load_path, arg_ocamlpath, flags, warnings =
+    parse_args args true false [] [] [] Flags.default []
   in
+  let ocamlpath = ocamlpath @ arg_ocamlpath in
   (* Setup ml_include for the core plugins *)
   let dft_vo_load_path =
     if boot then []
@@ -179,7 +193,7 @@ let make ~add_dir ~cmdline ~implicit ~kind ~debug =
     mk_lp ~coq_path:Names.DirPath.empty ~unix_path ~implicit:true
       ~installed:false
   in
-  let vo_load_path = dft_vo_load_path @ vo_load_path in
+  let vo_load_path = dft_vo_load_path @ vo_load_path @ arg_vo_load_path in
   let vo_load_path =
     match add_dir with
     | Some dir -> add_path dir :: vo_load_path

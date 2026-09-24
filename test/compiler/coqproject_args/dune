@@ -1,0 +1,7 @@
+(cram
+ (deps
+  ; For the Coq prelude to be built
+  (package rocq-core)
+  ; For the serlib plugins to be built
+  (package coq-lsp)
+  %{bin:fcc}))
