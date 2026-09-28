@@ -57,6 +57,11 @@ module Util          = Ser_util
 module Gentactic = Ser_gentactic
 module Control = Ser_control
 
+module AssertCapturedOutputFlags = struct
+  type t = [%import: Vernacexpr.AssertCapturedOutputFlags.t]
+  [@@deriving sexp,yojson,hash,compare]
+end
+
 type coercion_class = [%import: Vernacexpr.coercion_class]
   [@@deriving sexp,yojson,hash,compare]
 
