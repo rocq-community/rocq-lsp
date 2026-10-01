@@ -54,17 +54,16 @@ module KNmap = KerName.Map
 
 module Constant : SerType.SJHC with type t = Constant.t
 
-module Cset_env : Ser_cSet.ExtS with type elt = Constant.t and type t = Cset_env.t
+module Cset : Ser_cSet.ExtS with type elt = Constant.t and type t = Cset.t
 
-module Cmap : Ser_cMap.ExtS with type key = Constant.t and type 'a t = 'a Cmap.t [@@warning "-3"]
-module Cmap_env : Ser_cMap.ExtS with type key = Constant.t and type 'a t = 'a Cmap_env.t
+module Cmap : Ser_cMap.ExtS with type key = Constant.t and type 'a t = 'a Cmap.t
 
 module MutInd : SerType.SJHC with type t = MutInd.t
 
-module Mindmap_env : Ser_cMap.ExtS with type key = MutInd.t and type 'a t = 'a Mindmap_env.t
+module Mindmap : Ser_cMap.ExtS with type key = MutInd.t and type 'a t = 'a Mindmap.t
 
-module Indset_env : Ser_cSet.ExtS with type elt = inductive and type t = Indset_env.t
-module Indmap_env : Ser_cMap.ExtS with type key = inductive and type 'a t = 'a Indmap_env.t
+module Indset : Ser_cSet.ExtS with type elt = inductive and type t = Indset.t
+module Indmap : Ser_cMap.ExtS with type key = inductive and type 'a t = 'a Indmap.t
 
 type 'a tableKey = 'a Names.tableKey
 

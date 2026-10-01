@@ -36,7 +36,7 @@ type abstr_inst_info = {
   abstr_uinst : UVars.Instance.t;
 } [@@deriving sexp,yojson,hash,compare]
 
-type 'a entry_map = 'a Names.Cmap_env.t * 'a Names.Mindmap_env.t [@@deriving sexp,yojson,hash,compare]
+type 'a entry_map = 'a Names.Cmap.t * 'a Names.Mindmap.t [@@deriving sexp,yojson,hash,compare]
 type expand_info = abstr_inst_info entry_map [@@deriving sexp,yojson,hash,compare]
 
 module CIP = struct
