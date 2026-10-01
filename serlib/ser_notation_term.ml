@@ -24,6 +24,8 @@ open Sexplib.Std
 open Ppx_hash_lib.Std.Hash.Builtin
 open Ppx_compare_lib.Builtin
 
+module Constrexpr = Ser_constrexpr
+
 type scope_name =
   [%import: Notation_term.scope_name]
   [@@deriving sexp,yojson,hash,compare]
