@@ -176,10 +176,9 @@ let compare x y = compare__t (_t_put x) (_t_put y)
 
 end
 
-module Cset_env = Ser_cSet.Make(Cset_env)(Constant)
+module Cset = Ser_cSet.Make(Cset)(Constant)
 
-module Cmap = Ser_cMap.Make(Cmap)(Constant) [@@warning "-3"]
-module Cmap_env = Ser_cMap.Make(Cmap_env)(Constant)
+module Cmap = Ser_cMap.Make(Cmap)(Constant)
 
 module MutInd = struct
 
@@ -201,7 +200,7 @@ module MutInd = struct
   include SerType.Biject(BijectSpec)
 end
 
-module Mindmap_env = Ser_cMap.Make(Mindmap_env)(MutInd)
+module Mindmap = Ser_cMap.Make(Mindmap)(MutInd)
 
 type 'a tableKey =
   [%import: 'a Names.tableKey]
@@ -218,8 +217,8 @@ module Ind = struct
   [@@deriving sexp,yojson,hash,compare]
 end
 
-module Indset_env = Ser_cSet.Make(Indset_env)(Ind)
-module Indmap_env = Ser_cMap.Make(Indmap_env)(Ind)
+module Indset = Ser_cSet.Make(Indset)(Ind)
+module Indmap = Ser_cMap.Make(Indmap)(Ind)
 
 type inductive =
   [%import: Names.inductive]
