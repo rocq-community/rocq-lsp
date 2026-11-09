@@ -38,17 +38,3 @@ let to_range ~lines (p : Loc.t) : Lang.Range.t =
     }
 
 let to_orange ~lines = Option.map (to_range ~lines)
-
-let with_control ~fn ~control ~st =
-  let open VernacControl in
-  let control = from_syntax control in
-  let control, () =
-    under_control ~loc:None ~with_local_state:trivial_state control ~noop:() fn
-  in
-  let noop = after_last_phase ~loc:None control in
-  let () =
-    if noop then (
-      Vernacstate.Interp.invalidate_cache ();
-      Vernacstate.unfreeze_full_state (State.to_coq st))
-  in
-  ()

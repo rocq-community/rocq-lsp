@@ -16,6 +16,11 @@
 (* Written by: Emilio J. Gallego Arias and others                       *)
 (************************************************************************)
 
+module AssertCapturedOutputFlags : sig
+  type t = [%import: Vernacexpr.AssertCapturedOutputFlags.t]
+  [@@deriving sexp,yojson,hash,compare]
+end
+
 type infix_flag =
   [%import: Vernacexpr.infix_flag]
   [@@deriving sexp,yojson,hash,compare]
