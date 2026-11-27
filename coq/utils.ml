@@ -48,7 +48,6 @@ let with_control ~fn ~control ~st =
   let noop = after_last_phase ~loc:None control in
   let () =
     if noop then (
-      Vernacstate.Interp.invalidate_cache ();
       Vernacstate.unfreeze_full_state (State.to_coq st))
   in
   ()
