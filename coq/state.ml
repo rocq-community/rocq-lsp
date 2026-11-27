@@ -56,16 +56,16 @@ let to_coq x = x
 let compare (x : t) (y : t) =
   let open Vernacstate in
   let { synterp = ss1
-      ; interp = { system = is1; lemmas = l1; program = g1; opaques = o1 }
+      ; interp = { system = is1; lemmas = l1; program = g1; opaques = o1; captured_output = co1 }
       } =
     x
   in
   let { synterp = ss2
-      ; interp = { system = is2; lemmas = l2; program = g2; opaques = o2 }
+      ; interp = { system = is2; lemmas = l2; program = g2; opaques = o2; captured_output = co2 }
       } =
     y
   in
-  if ss1 == ss2 && is1 == is2 && l1 == l2 && g1 == g2 && o1 == o2 then 0 else 1
+  if ss1 == ss2 && is1 == is2 && l1 == l2 && g1 == g2 && o1 == o2 && co1 == co2 then 0 else 1
 
 let equal x y = compare x y = 0
 

@@ -12,10 +12,3 @@
 val to_range : lines:string array -> Loc.t -> Lang.Range.t
 
 val to_orange : lines:string array -> Loc.t option -> Lang.Range.t option
-
-(** Separation of parsing and execution made this API hard to use for us *)
-val with_control :
-     fn:(unit -> unit)
-  -> control:Vernacexpr.control_flag list
-  -> st:State.t
-  -> unit

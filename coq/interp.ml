@@ -21,18 +21,9 @@ module Require = struct
      orthogonal *)
   let interp ~intern ~st _files
       { Ast.Require.from; export; mods; loc = _; attrs; control } =
-    let () = Vernacstate.unfreeze_full_state (State.to_coq st) in
-    let fn () = Vernacentries.vernac_require ~intern from export mods in
-    (* Check generic attributes *)
-    let fn () =
-      Synterp.with_generic_atts ~check:true attrs (fun ~atts ->
-          (* Fail if attributes are not empty *)
-          Attributes.unsupported_attributes atts;
-          fn ())
-    in
-    (* Execute control commands *)
-    let () = Utils.with_control ~fn ~control ~st in
-    Vernacstate.freeze_full_state () |> State.of_coq
+    Vernacinterp.interp ~intern ~st:(State.to_coq st) @@
+    CAst.make Vernacexpr.{ control; attrs; expr = VernacSynterp (VernacRequire (from,export,mods)) }
+    |> State.of_coq
 
   let interp ~token ~intern ~st files cmd =
     Protect.eval ~token ~f:(interp ~intern ~st files) cmd
