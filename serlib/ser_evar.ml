@@ -44,3 +44,4 @@ end
 include Self
 
 module Set = Ser_cSet.Make(Evar.Set)(Self)
+module Map = Ser_cMap.Make(Evar.Map)(Self)
